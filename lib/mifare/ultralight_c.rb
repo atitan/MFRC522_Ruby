@@ -32,7 +32,7 @@ module Mifare
       verification = auth_key.decrypt(received_data)
 
       if random_number.rotate != verification
-        halt
+        resume_communication
         return @authed = false
       end
 
@@ -40,7 +40,7 @@ module Mifare
     end
 
     def authed?
-      @authed
+      @authed || false
     end
 
     def write_des_key(key)
@@ -68,7 +68,7 @@ module Mifare
     end
 
     def enable_protection_from(block_addr)
-      if block_addr >= 0x03 && block_addr <= 0x30
+      if block_addr < 0x03 || block_addr > 0x30
         raise UnexpectedDataError, 'Requested block beyond memory limit'
       end
       # authentication will be required from `block_addr` to 0x2F
