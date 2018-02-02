@@ -34,8 +34,8 @@ class ISO144434 < PICC
     raise UnexpectedDataError, 'Incorrect response' if received_data[0] != (0xD0 | @cid)
 
     # Set PCD baud rate
-    @pcd.transceiver_baud_rate(:tx, dr)
-    @pcd.transceiver_baud_rate(:rx, ds)
+    @pcd.transceiver_baud_rate(:tx, iso_baud_rate_to_pcd(dr))
+    @pcd.transceiver_baud_rate(:rx, iso_baud_rate_to_pcd(ds))
 
     @block_number = 0
     @max_frame_size = [64, @fsc].min
@@ -50,12 +50,10 @@ class ISO144434 < PICC
     buffer = [CMD_DESELECT]
     received_data = @pcd.picc_transceive(buffer)
 
-    if received_data[0] & 0xF7 == CMD_DESELECT
-      @selected = false
-      true
-    else
-      false
-    end
+    result = received_data[0] & 0xF7 == CMD_DESELECT
+    @selected = !result
+
+    result
   end
 
   # Wrapper for handling ISO protocol
@@ -128,6 +126,7 @@ class ISO144434 < PICC
   def resume_communication
     deselect rescue nil
     super
+    select
   end
 
   def halt
@@ -137,7 +136,7 @@ class ISO144434 < PICC
 
   private
 
-  def convert_iso_baud_rate_to_pcd_setting(value)
+  def iso_baud_rate_to_pcd(value)
     # ISO
     # 0b000: 106kBd, 0b001: 212kBd, 0b010: 424kBd, 0b100: 848kBd
     # MFRC522 register
@@ -167,15 +166,6 @@ class ISO144434 < PICC
 
       dr = ta & 0x07 # PCD to PICC baud rate
       ds = (ta >> 4) & 0x07 # PICC to PCD baud rate
-
-      # Convert fastest baud rate to PCD setting
-      # dr = convert_iso_baud_rate_to_pcd_setting(dr)
-      # ds = convert_iso_baud_rate_to_pcd_setting(ds)
-
-      # FIXME: baud rate fixed to 106kBd
-      # until author can confirm negotiation works
-      dr = 0
-      ds = 0
     end
 
     # Frame: TB
@@ -242,6 +232,6 @@ class ISO144434 < PICC
       end
     end
 
-    raise PICCTimeoutError
+    raise PICCTimeoutError, 'Timeout while handling WTX frame.'
   end
 end
