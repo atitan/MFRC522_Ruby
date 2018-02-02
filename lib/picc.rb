@@ -10,19 +10,13 @@ class PICC
   end
 
   def resume_communication
-    if @pcd.reestablish_picc_communication(@uid)
-      @halted = false
-      true
-    else
-      false
+    unless @pcd.reestablish_picc_communication(@uid)
+      halt
+      raise CommunicationError, 'Unable to resume communication or wrong card was presented. Halting cards in the field.'
     end
   end
 
   def halt
-    if @pcd.picc_halt
-      @halted = true
-    else
-      @halted = false
-    end
+    @halted = @pcd.picc_halt
   end
 end
