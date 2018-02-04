@@ -159,11 +159,13 @@ class MFRC522
   # value = 0: 106kBd, 1: 212kBd, 2: 424kBd, 3: 848kBd
   def transceiver_baud_rate(direction, value = nil)
     reg = {tx: TxModeReg, rx: RxModeReg}
+    mod = {0 => 0x26, 1 => 0x15, 2 => 0x0A, 3 => 0x05}
 
     if value
       value <<= 4
       value |= 0x80 if value != 0
       write_spi(reg.fetch(direction), value)
+      write_spi(ModWidthReg, mod.fetch(value))
     end
 
     (read_spi(reg.fetch(direction)) >> 4) & 0x07
