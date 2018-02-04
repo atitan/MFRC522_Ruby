@@ -11,7 +11,7 @@ module Mifare
 
       # Ask for authentication
       buffer = [CMD_3DES_AUTH, 0x00]
-      received_data = @pcd.picc_transceive(buffer)
+      received_data = transceive(buffer)
       card_status = received_data.shift
       raise UnexpectedDataError, 'Incorrect response' if card_status != 0xAF
 
@@ -24,7 +24,7 @@ module Mifare
 
       # Send challenge response
       buffer = [0xAF] + response
-      received_data = @pcd.picc_transceive(buffer)
+      received_data = transceive(buffer)
       card_status = received_data.shift
       raise UnexpectedDataError, 'Incorrect response' if card_status != 0x00
 

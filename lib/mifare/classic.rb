@@ -37,7 +37,7 @@ module Mifare
     def read(block_addr)
       buffer = [CMD_READ, block_addr]
 
-      @pcd.picc_transceive(buffer)
+      transceive(buffer)
     end
 
     def write(block_addr, send_data)
@@ -48,10 +48,10 @@ module Mifare
       buffer = [CMD_WRITE, block_addr]
 
       # Ask PICC if we can write to block_addr
-      @pcd.picc_transceive(buffer)
+      transceive(buffer)
 
       # Then start transfer our data
-      @pcd.picc_transceive(send_data)
+      transceive(send_data)
     end
 
     def read_value(block_addr)
@@ -112,7 +112,7 @@ module Mifare
     def transfer(block_addr)
       buffer = [CMD_TRANSFER, block_addr]
 
-      @pcd.picc_transceive(buffer)
+      transceive(buffer)
     end
 
     private
@@ -123,10 +123,10 @@ module Mifare
       send_data = [].append_uint(value, 4)
 
       # Ask PICC if we can write to block_addr
-      @pcd.picc_transceive(buffer)
+      transceive(buffer)
 
       # Then start transfer our data
-      @pcd.picc_transceive(send_data, true) # Accept timeout
+      transceive(send_data, true) # Accept timeout
     end
   end
 end

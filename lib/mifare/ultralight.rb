@@ -18,7 +18,7 @@ module Mifare
     def read(block_addr)
       buffer = [CMD_READ, block_addr]
 
-      @pcd.picc_transceive(buffer)
+      transceive(buffer)
     end
 
     def write(page, send_data)
@@ -29,7 +29,7 @@ module Mifare
       buffer = [CMD_WRITE, page]
       buffer.concat(send_data)
 
-      @pcd.picc_transceive(buffer)
+      transceive(buffer)
     end
 
     def model_c?
@@ -44,7 +44,7 @@ module Mifare
       buffer = [CMD_3DES_AUTH, 0x00]
 
       begin
-        @pcd.picc_transceive(buffer)
+        transceive(buffer)
         result = true
       rescue CommunicationError
         result = false

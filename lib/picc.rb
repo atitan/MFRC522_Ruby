@@ -9,6 +9,10 @@ class PICC
     @halted = false
   end
 
+  def transceive(send_data, accept_timeout = false)
+    @pcd.picc_transceive(send_data, accept_timeout)
+  end
+
   def resume_communication
     unless @pcd.reestablish_picc_communication(@uid)
       halt
