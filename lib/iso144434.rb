@@ -26,16 +26,16 @@ class ISO144434 < PICC
     buffer = [CMD_RATS, 0x50 | @cid]
     received_data = @pcd.picc_transceive(buffer)
 
-    dr, ds = process_ats(received_data)
+    dri, dsi = process_ats(received_data)
 
     # Send PPS (Protocol and Parameter Selection Request)
-    buffer = [CMD_PPS | @cid, 0x11, (ds << 2) | dr]
+    buffer = [CMD_PPS | @cid, 0x11, (dsi << 2) | dri]
     received_data = @pcd.picc_transceive(buffer)
     raise UnexpectedDataError, 'Incorrect response' if received_data[0] != (0xD0 | @cid)
 
     # Set PCD baud rate
-    @pcd.transceiver_baud_rate(:tx, iso_baud_rate_to_pcd(dr))
-    @pcd.transceiver_baud_rate(:rx, iso_baud_rate_to_pcd(ds))
+    @pcd.transceiver_baud_rate(:tx, dri)
+    @pcd.transceiver_baud_rate(:rx, dsi)
 
     @block_number = 0
     @max_frame_size = [64, @fsc].min
@@ -136,11 +136,12 @@ class ISO144434 < PICC
 
   private
 
-  def iso_baud_rate_to_pcd(value)
-    # ISO
+  def choose_d(value)
+    # ISO DS/DR
     # 0b000: 106kBd, 0b001: 212kBd, 0b010: 424kBd, 0b100: 848kBd
-    # MFRC522 register
+    # MFRC522 register & ISO DSI/DRI
     # 0b000: 106kBd, 0b001: 212kBd, 0b010: 424kBd, 0b011: 848kBd
+    # Find largest bit(fastest baud rate)
     x = (value >> 2) & 0x01
     y = (value >> 1) & 0x01
     z = value & 0x01
@@ -156,8 +157,6 @@ class ISO144434 < PICC
     fsci = t0 & 0x0F # PICC buffer size integer
     y1 = (t0 >> 4) & 0x07 # Optional frame(TA, TB, TC) indicator
     @fsc = FSCI_to_FSC.fetch(fsci) # Convert buffer size integer to bytes
-    dr = 0 # default baud rate 106kBd
-    ds = 0
 
     # Frame: TA
     if y1 & 0x01 != 0
@@ -166,6 +165,15 @@ class ISO144434 < PICC
 
       dr = ta & 0x07 # PCD to PICC baud rate
       ds = (ta >> 4) & 0x07 # PICC to PCD baud rate
+      same_d = (ta >> 7) & 0x01
+      
+      if same_d != 0
+        dr &= ds
+        ds &= dr
+      end
+      
+      dri = choose_d(dr)
+      dsi = choose_d(ds)
     end
 
     # Frame: TB
@@ -196,7 +204,7 @@ class ISO144434 < PICC
     # Start-up guard time
     sleep 0.000302 * sgft
 
-    return dr, ds
+    return dri, dsi
   end
 
   def handle_wtx(data)
