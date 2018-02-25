@@ -1,7 +1,5 @@
 module Mifare
   module UltralightC
-    CMD_3DES_AUTH = 0x1A # Ultralight C 3DES Authentication.
-
     def auth(auth_key)
       if auth_key.cipher_suite != 'des-ede-cbc'
         raise UsageError, 'Incorrect Auth Key Type'

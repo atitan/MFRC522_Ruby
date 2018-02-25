@@ -4,8 +4,6 @@ class PICC
   CMD_RATS              = 0xE0
   CMD_PPS               = 0xD0
   CMD_DESELECT          = 0xC2
-  CMD_SUCCESS           = 0x00
-  CMD_ADDITIONAL_FRAME  = 0xAF
 
   attr_reader :uid
   attr_reader :sak

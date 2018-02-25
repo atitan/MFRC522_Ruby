@@ -67,42 +67,46 @@ module Mifare
     KEY_TYPE = {'des-ede-cbc' => 0x00, 'des-ede3-cbc' => 0x40, 'aes-128-cbc' => 0x80}
 
     KEY_SETTING = Struct.new(
-      # Key number(0x00~0x0D) required for `change_key`
-      # 0x0E means same key, 0x0F freezes all keys
+      # Key number required for `change_key`
+      # 0x00 means only master key is accepted
+      # 0x01~0x0D chooses an app key to change any key
+      # 0x0E means keys can only change themselves
+      # 0x0F freezes all keys, except master key
+      # to freeze master key, use :masterkey_changeable
       :privileged_key,
       # Set if master key can be modified
-      :mk_changeable,
+      :masterkey_changeable,
       # Set if listing requires master key
-      :listing_without_mk,
+      :file_management_without_auth,
       # Set if create or delete requires master key
-      :create_delete_without_mk,
+      :file_configurable_without_auth,
       # Set if this setting can be modified
-      :configuration_changeable) do
+      :key_setting_changeable) do
       def initialize(*data)
         self[:privileged_key] = 0
-        self[:mk_changeable] = true
-        self[:listing_without_mk] = true
-        self[:create_delete_without_mk] = true
-        self[:configuration_changeable] = true
+        self[:masterkey_changeable] = true
+        self[:file_management_without_auth] = true
+        self[:file_configurable_without_auth] = true
+        self[:key_setting_changeable] = true
         super
       end
 
       def self.import(byte)
         self.new(
           (byte >> 4) & 0x0F,
-          (byte >> 0) & 0x01 != 0,
-          (byte >> 1) & 0x01 != 0,
-          (byte >> 2) & 0x01 != 0,
-          (byte >> 3) & 0x01 != 0
+          byte & 0x01 != 0,
+          byte & 0x02 != 0,
+          byte & 0x04 != 0,
+          byte & 0x08 != 0
         )
       end
 
       def export
         output = (privileged_key << 4)
-        output |= 0x01 if mk_changeable
-        output |= 0x02 if listing_without_mk
-        output |= 0x04 if create_delete_without_mk
-        output |= 0x08 if configuration_changeable
+        output |= 0x01 if masterkey_changeable
+        output |= 0x02 if file_management_without_auth
+        output |= 0x04 if file_configurable_without_auth
+        output |= 0x08 if key_setting_changeable
         output
       end
     end
