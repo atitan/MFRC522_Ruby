@@ -242,7 +242,7 @@ module Mifare
 
       if rx == :encrypt
         if receive_length.nil?
-          raise UnexpectedDataError, 'Lack of receive length for removing padding'
+          raise UsageError, 'Lack of receive length for removing padding'
         end
         received_data = @session_key.decrypt(received_data)
         received_data = remove_padding_bytes(received_data, receive_length)
@@ -337,7 +337,7 @@ module Mifare
 
     def create_app(id, key_setting, key_count, cipher_suite)
       raise UnauthenticatedError unless @authed
-      raise UnexpectedDataError, 'An application can only hold up to 14 keys.' if key_count > 14
+      raise UsageError, 'An application can only hold up to 14 keys.' if key_count > 14
 
       buffer = convert_app_id(id) + [key_setting.to_uint, KEY_TYPE.fetch(cipher_suite) | key_count]
 
@@ -374,7 +374,7 @@ module Mifare
 
     def change_key(key_number, new_key, curr_key = nil)
       raise UnauthenticatedError unless @authed
-      raise UnexpectedDataError, 'Invalid key number' if key_number > 13
+      raise UsageError, 'Invalid key number' if key_number > 13
       
       cryptogram = new_key.key
 
@@ -524,7 +524,7 @@ module Mifare
     end
 
     def credit_value(id, delta)
-      raise UnexpectedDataError, 'Negative number is not allowed.' if delta < 0
+      raise UsageError, 'Negative number is not allowed.' if delta < 0
 
       buffer = []
       buffer.append_sint(delta, 4)
@@ -533,7 +533,7 @@ module Mifare
     end
 
     def debit_value(id, delta)
-      raise UnexpectedDataError, 'Negative number is not allowed.' if delta < 0
+      raise UsageError, 'Negative number is not allowed.' if delta < 0
 
       buffer = []
       buffer.append_sint(delta, 4)
@@ -542,7 +542,7 @@ module Mifare
     end
 
     def limited_credit_value(id, delta)
-      raise UnexpectedDataError, 'Negative number is not allowed.' if delta < 0
+      raise UsageError, 'Negative number is not allowed.' if delta < 0
 
       buffer = []
       buffer.append_sint(delta, 4)
@@ -589,7 +589,7 @@ module Mifare
     end
 
     def convert_app_id(id)
-      raise UnexpectedDataError, 'Application ID overflow' if id < 0 || id >= (1 << 24)
+      raise UsageError, 'Application ID overflow' if id < 0 || id >= (1 << 24)
 
       [].append_uint(id, 3)
     end

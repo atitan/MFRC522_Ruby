@@ -4,7 +4,7 @@ module Mifare
 
     def auth(auth_key)
       if auth_key.cipher_suite != 'des-ede-cbc'
-        raise UnexpectedDataError, 'Incorrect Auth Key Type'
+        raise UsageError, 'Incorrect Auth Key Type'
       end
 
       auth_key.clear_iv
@@ -13,7 +13,7 @@ module Mifare
       buffer = [CMD_3DES_AUTH, 0x00]
       received_data = transceive(buffer)
       card_status = received_data.shift
-      raise UnexpectedDataError, 'Incorrect response' if card_status != 0xAF
+      raise UnexpectedDataError, 'Auth failed: stage 1' if card_status != 0xAF
 
       challenge = auth_key.decrypt(received_data)
       challenge_rot = challenge.rotate
@@ -26,7 +26,7 @@ module Mifare
       buffer = [0xAF] + response
       received_data = transceive(buffer)
       card_status = received_data.shift
-      raise UnexpectedDataError, 'Incorrect response' if card_status != 0x00
+      raise UnexpectedDataError, 'Auth failed: stage 2' if card_status != 0x00
 
       # Check if verification matches rotated random_number
       verification = auth_key.decrypt(received_data)
@@ -47,7 +47,7 @@ module Mifare
       # key should be 16 bytes long
       bytes = [key].pack('H*').bytes
       if bytes.size != 16
-        raise UnexpectedDataError, "Expect 16 bytes 3DES key, got: #{bytes.size} byte"
+        raise UsageError, "Expect 16 bytes 3DES key, got: #{bytes.size} byte"
       end
 
       # Key1
@@ -60,7 +60,7 @@ module Mifare
 
     def counter_increment(value)
       if value < 0
-        raise UnexpectedDataError, 'Expect positive integer for counter'
+        raise UsageError, 'Expect positive integer for counter'
       end
       # you can set any value between 0x0000 to 0xFFFF on the first write (initialize)
       # after initialized, counter can only be incremented by 0x01 ~ 0x0F
@@ -69,7 +69,7 @@ module Mifare
 
     def enable_protection_from(block_addr)
       if block_addr < 0x03 || block_addr > 0x30
-        raise UnexpectedDataError, 'Requested block beyond memory limit'
+        raise UsageError, 'Requested block beyond memory limit'
       end
       # authentication will be required from `block_addr` to 0x2F
       # valid value are from 0x03 to 0x30

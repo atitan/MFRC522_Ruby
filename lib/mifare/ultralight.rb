@@ -25,7 +25,7 @@ module Mifare
 
     def write(page, send_data)
       if send_data.size != 4
-        raise UnexpectedDataError, "Expect 4 bytes data, got: #{send_data.size} byte"
+        raise UsageError, "Expect 4 bytes data, got: #{send_data.size} byte"
       end
 
       buffer = [CMD_WRITE, page]

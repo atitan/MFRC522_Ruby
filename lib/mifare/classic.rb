@@ -15,7 +15,7 @@ module Mifare
 
     def auth(block_addr, key = {})
       if key[:a].nil? && key[:b].nil?
-        raise UnexpectedDataError, 'Missing key data'
+        raise UsageError, 'Missing key data'
       end
 
       if key[:a]
@@ -28,7 +28,7 @@ module Mifare
 
       key = [key].pack('H*').bytes
       if key.size != 6
-        raise UnexpectedDataError, "Expect 6 bytes auth key, got: #{key.size} byte"
+        raise UsageError, "Expect 6 bytes auth key, got: #{key.size} byte"
       end
 
       @pcd.mifare_crypto1_authenticate(cmd, block_addr, key, @uid)
@@ -46,7 +46,7 @@ module Mifare
 
     def write(block_addr, send_data)
       if send_data.size != 16
-        raise UnexpectedDataError, "Expect 16 bytes data, got: #{send_data.size} byte"
+        raise UsageError, "Expect 16 bytes data, got: #{send_data.size} byte"
       end
 
       buffer = [CMD_WRITE, block_addr]

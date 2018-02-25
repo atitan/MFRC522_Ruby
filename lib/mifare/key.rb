@@ -92,7 +92,7 @@ module Mifare
 
       if key_type == :des
         if @key_size != 8 && @key_size != 16 && @key_size != 24
-          raise UnexpectedDataError, 'Incorrect key length'
+          raise UsageError, 'Incorrect key length'
         end
 
         # Data block size for DES is 8 bytes
@@ -114,7 +114,7 @@ module Mifare
 
       elsif key_type == :aes
         if @key_size != 16
-          raise UnexpectedDataError, 'Incorrect key length'
+          raise UsageError, 'Incorrect key length'
         end
 
         # data block size for AES is 16 bytes
@@ -122,7 +122,7 @@ module Mifare
         @key = key
         @cipher_suite = 'aes-128-cbc'
       else
-        raise UnexpectedDataError, 'Unknown key type'
+        raise UsageError, 'Unknown key type'
       end
 
       @key = @key.pack('C*')
@@ -162,7 +162,7 @@ module Mifare
 
         output_data.bytes
       else
-        raise UnexpectedDataError, 'Unknown CBC mode'
+        raise UsageError, 'Unknown CBC mode'
       end
     end
 

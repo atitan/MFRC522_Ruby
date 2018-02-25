@@ -5,6 +5,7 @@ class IncorrectCRCError < CommunicationError; end
 class CollisionError < CommunicationError; end
 
 class UnexpectedDataError < StandardError; end
+class UsageError < StandardError; end
 
 class MifareNakError < StandardError; end
 
