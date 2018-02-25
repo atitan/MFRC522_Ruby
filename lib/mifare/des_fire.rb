@@ -173,7 +173,7 @@ module Mifare
       invalid_auth
     end
 
-    def transceive(cmd: , plain_data: [], data: [], tx: nil, rx: nil, expect: nil, return_data: nil, receive_all: nil, receive_length: nil)
+    def transceive(cmd: , plain_data: [], data: [], tx: nil, rx: nil, expect: nil, return_data: nil, receive_length: nil)
       # Session key is needed for encryption
       if (tx == :encrypt || rx == :encrypt) && !@authed
         raise UnauthenticatedError
@@ -209,7 +209,7 @@ module Mifare
         card_status = receive_buffer.shift
         received_data.concat(receive_buffer)
 
-        break if card_status != ST_ADDITIONAL_FRAME || (buffer.empty? && !receive_all)
+        break if card_status != ST_ADDITIONAL_FRAME
 
         buffer.unshift(CMD_ADDITIONAL_FRAME)
       end
@@ -225,7 +225,7 @@ module Mifare
         raise UnexpectedDataError, 'Card status does not match expected value'
       end
 
-      if rx != :encrypt && (card_status == ST_SUCCESS || card_status == ST_ADDITIONAL_FRAME) && @authed
+      if rx != :encrypt && @authed
         @cmac_buffer = [] if cmd != CMD_ADDITIONAL_FRAME
         @cmac_buffer.concat(received_data) if card_status == ST_ADDITIONAL_FRAME
 
@@ -238,9 +238,7 @@ module Mifare
             raise ReceiptIntegrityError
           end
         end
-      end
-
-      if rx == :encrypt
+      elsif rx == :encrypt
         if receive_length.nil?
           raise UsageError, 'Lack of receive length for removing padding'
         end
@@ -253,15 +251,7 @@ module Mifare
         end
       end
 
-      if expect
-        if received_data.empty? && !return_data
-          return true
-        else
-          return received_data
-        end
-      end
-
-      return card_status, received_data
+      received_data
     end
 
     def auth(key_number, auth_key)
@@ -280,7 +270,7 @@ module Mifare
       response = auth_key.encrypt(random_number + challenge_rot)
 
       # Send challenge response
-      received_data = transceive(cmd: CMD_ADDITIONAL_FRAME, data: response, expect: ST_SUCCESS)
+      received_data = transceive(cmd: CMD_ADDITIONAL_FRAME, data: response)
 
       # Check if verification matches rotated random_number
       verification = auth_key.decrypt(received_data)
@@ -314,7 +304,7 @@ module Mifare
     end
 
     def get_app_ids
-      ids = transceive(cmd: CMD_GET_APP_IDS, expect: ST_SUCCESS, return_data: true, receive_all: true)
+      ids = transceive(cmd: CMD_GET_APP_IDS)
 
       return ids if ids.empty?
 
@@ -329,7 +319,7 @@ module Mifare
     end
 
     def select_app(id)
-      transceive(cmd: CMD_SELECT_APP, data: convert_app_id(id), expect: ST_SUCCESS)
+      transceive(cmd: CMD_SELECT_APP, data: convert_app_id(id))
 
       invalid_auth
       @selected_app = id
@@ -341,17 +331,17 @@ module Mifare
 
       buffer = convert_app_id(id) + [key_setting.to_uint, KEY_TYPE.fetch(cipher_suite) | key_count]
 
-      transceive(cmd: CMD_CREATE_APP, data: buffer, expect: ST_SUCCESS)
+      transceive(cmd: CMD_CREATE_APP, data: buffer)
     end
 
     def delete_app(id)
       raise UnauthenticatedError unless @authed
 
-      transceive(cmd: CMD_DELETE_APP, data: convert_app_id(id), expect: ST_SUCCESS)
+      transceive(cmd: CMD_DELETE_APP, data: convert_app_id(id))
     end
 
     def get_card_version
-      version = transceive(cmd: CMD_GET_CARD_VERSION, expect: ST_SUCCESS, receive_all: true)
+      version = transceive(cmd: CMD_GET_CARD_VERSION)
 
       CARD_VERSION.new(
         version[0], version[1], version[2], version[3], version[4], 1 << (version[5] / 2), version[6],
@@ -363,11 +353,11 @@ module Mifare
     def format_card
       raise UnauthenticatedError unless @authed
 
-      transceive(cmd: CMD_FORMAT_CARD, expect: ST_SUCCESS)
+      transceive(cmd: CMD_FORMAT_CARD)
     end
 
     def get_key_version(key_number)
-      received_data = transceive(cmd: CMD_GET_KEY_VERSION, data: key_number, expect: ST_SUCCESS)
+      received_data = transceive(cmd: CMD_GET_KEY_VERSION, data: key_number)
 
       received_data[0]
     end
@@ -405,11 +395,11 @@ module Mifare
       # Change current used key will revoke authentication
       invalid_auth if same_key
 
-      transceive(cmd: CMD_CHANGE_KEY, data: buffer, expect: ST_SUCCESS)
+      transceive(cmd: CMD_CHANGE_KEY, data: buffer)
     end
 
     def get_key_setting
-      received_data = transceive(cmd: CMD_GET_KEY_SETTING, expect: ST_SUCCESS)
+      received_data = transceive(cmd: CMD_GET_KEY_SETTING)
 
       { key_setting: KEY_SETTING.new.import(received_data[0]),
         key_count: received_data[1] & 0x0F,
@@ -419,11 +409,11 @@ module Mifare
     def change_key_setting(key_setting)
       raise UnauthenticatedError unless @authed
 
-      transceive(cmd: CMD_CHANGE_KEY_SETTING, data: key_setting.to_uint, tx: :encrypt, expect: ST_SUCCESS)
+      transceive(cmd: CMD_CHANGE_KEY_SETTING, data: key_setting.to_uint, tx: :encrypt)
     end
 
     def get_file_ids
-      transceive(cmd: CMD_GET_FILE_IDS, expect: ST_SUCCESS, return_data: true)
+      transceive(cmd: CMD_GET_FILE_IDS)
     end
 
     def file_exist?(id)
@@ -431,7 +421,7 @@ module Mifare
     end
 
     def get_file_setting(id)
-      received_data = transceive(cmd: CMD_GET_FILE_SETTING, data: id, expect: ST_SUCCESS)
+      received_data = transceive(cmd: CMD_GET_FILE_SETTING, data: id)
 
       file_setting = FILE_SETTING.new
       file_setting.type = FILE_TYPE.key(received_data.shift)
@@ -460,7 +450,7 @@ module Mifare
       buffer.append_uint(FILE_COMMUNICATION.fetch(file_setting.communication), 1)
       buffer.append_uint(file_setting.permission.to_uint, 2)
 
-      transceive(cmd: CMD_CHANGE_FILE_SETTING, plain_data: id, data: buffer, tx: :encrypt, expect: ST_SUCCESS)
+      transceive(cmd: CMD_CHANGE_FILE_SETTING, plain_data: id, data: buffer, tx: :encrypt)
     end
 
     def create_file(id, file_setting)
@@ -483,22 +473,22 @@ module Mifare
 
       cmd = self.class.const_get("CMD_CREATE_#{file_setting.type.to_s.upcase}")
 
-      transceive(cmd: cmd, data: buffer, expect: ST_SUCCESS)
+      transceive(cmd: cmd, data: buffer)
     end
 
     def delete_file(id)
-      transceive(cmd: CMD_DELETE_FILE, data: id, expect: ST_SUCCESS)
+      transceive(cmd: CMD_DELETE_FILE, data: id)
     end
 
     def read_file(id, cmd, data, length)
       file_setting = get_file_setting(id)
       length *= file_setting.record_size if file_setting.record_size
-      transceive(cmd: cmd, data: data, rx: file_setting.communication, expect: ST_SUCCESS, receive_all: true, receive_length: length)
+      transceive(cmd: cmd, data: data, rx: file_setting.communication, receive_length: length)
     end
 
     def write_file(id, cmd, plain_data, data)
       file_setting = get_file_setting(id)
-      transceive(cmd: cmd, plain_data: plain_data, data: data, tx: file_setting.communication, expect: ST_SUCCESS)
+      transceive(cmd: cmd, plain_data: plain_data, data: data, tx: file_setting.communication)
     end
 
     def read_data(id, offset, length)
@@ -569,15 +559,15 @@ module Mifare
     end
 
     def clear_record(id)
-      transceive(cmd: CMD_CLEAR_RECORD_FILE, data: id, expect: ST_SUCCESS)
+      transceive(cmd: CMD_CLEAR_RECORD_FILE, data: id)
     end
 
     def commit_transaction
-      transceive(cmd: CMD_COMMIT_TRANSACTION, expect: ST_SUCCESS)
+      transceive(cmd: CMD_COMMIT_TRANSACTION)
     end
 
     def abort_transaction
-      transceive(cmd: CMD_ABORT_TRANSACTION, expect: ST_SUCCESS)
+      transceive(cmd: CMD_ABORT_TRANSACTION)
     end
 
     private
@@ -597,11 +587,12 @@ module Mifare
     # Remove trailing padding bytes
     def remove_padding_bytes(data, length)
       if length == 0
-        # padding format according to ISO 9797-1
+        # reading data until its limit uses ISO 9797-1 padding format
         str = data.pack('C*')
         str.sub! /#{0x80.chr}#{0x00.chr}*\z/, ''
         str.bytes
       else
+        # otherwise they're padded with 0s
         # data length + 4 bytes CRC
         data[0...length + 4]
       end
