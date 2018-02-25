@@ -79,28 +79,25 @@ module Mifare
       # Set if this setting can be modified
       :configuration_changeable) do
       def initialize(*data)
+        self[:privileged_key] = 0
+        self[:mk_changeable] = true
+        self[:listing_without_mk] = true
+        self[:create_delete_without_mk] = true
+        self[:configuration_changeable] = true
         super
-        default
       end
 
-      def default
-        self[:privileged_key] = 0 unless privileged_key
-        self[:mk_changeable] = true unless mk_changeable
-        self[:listing_without_mk] = true unless listing_without_mk
-        self[:create_delete_without_mk] = true unless create_delete_without_mk
-        self[:configuration_changeable] = true unless configuration_changeable
+      def self.import(byte)
+        self.new(
+          (byte >> 4) & 0x0F,
+          (byte >> 0) & 0x01 != 0,
+          (byte >> 1) & 0x01 != 0,
+          (byte >> 2) & 0x01 != 0,
+          (byte >> 3) & 0x01 != 0
+        )
       end
 
-      def import(byte)
-        self[:privileged_key] = (byte >> 4) & 0x0F
-        self[:mk_changeable] = byte & 0x01 != 0
-        self[:listing_without_mk] = (byte >> 1) & 0x01 != 0
-        self[:create_delete_without_mk] = (byte >> 2) & 0x01 != 0
-        self[:configuration_changeable] = (byte >> 3) & 0x01 != 0
-        self
-      end
-
-      def to_uint
+      def export
         output = (privileged_key << 4)
         output |= 0x01 if mk_changeable
         output |= 0x02 if listing_without_mk
@@ -119,15 +116,16 @@ module Mifare
 
     # value 0x00 ~ 0x0D are key numbers, 0x0E grants free access, 0x0F always denies access
     FILE_PERMISSION = Struct.new(:read_access, :write_access, :read_write_access, :change_access) do
-      def import(byte)
-        self[:change_access] = byte & 0x0F
-        self[:read_write_access] = (byte >> 4) & 0x0F
-        self[:write_access] = (byte >> 8) & 0x0F
-        self[:read_access] = (byte >> 12) & 0x0F
-        self
+      def self.import(byte)
+        self.new(
+          (byte >> 12) & 0x0F,
+          (byte >> 8) & 0x0F,
+          (byte >> 4) & 0x0F,
+          byte & 0x0F
+        )
       end
 
-      def to_uint
+      def export
         (read_access << 12) | (write_access << 8) | (read_write_access << 4) | change_access
       end
     end
@@ -168,9 +166,13 @@ module Mifare
       @authed.is_a? Numeric
     end
 
+    def select
+      iso_select
+    end
+
     def deselect
-      iso_deselect
       invalid_auth
+      iso_deselect
     end
 
     def transceive(cmd: , plain_data: [], data: [], tx: nil, rx: nil, expect: nil, return_data: nil, receive_length: nil)
@@ -329,7 +331,7 @@ module Mifare
       raise UnauthenticatedError unless @authed
       raise UsageError, 'An application can only hold up to 14 keys.' if key_count > 14
 
-      buffer = convert_app_id(id) + [key_setting.to_uint, KEY_TYPE.fetch(cipher_suite) | key_count]
+      buffer = convert_app_id(id) + [key_setting.export, KEY_TYPE.fetch(cipher_suite) | key_count]
 
       transceive(cmd: CMD_CREATE_APP, data: buffer)
     end
@@ -401,7 +403,7 @@ module Mifare
     def get_key_setting
       received_data = transceive(cmd: CMD_GET_KEY_SETTING)
 
-      { key_setting: KEY_SETTING.new.import(received_data[0]),
+      { key_setting: KEY_SETTING.import(received_data[0]),
         key_count: received_data[1] & 0x0F,
         key_type: KEY_TYPE.key(received_data[1] & 0xF0) }
     end
@@ -409,7 +411,7 @@ module Mifare
     def change_key_setting(key_setting)
       raise UnauthenticatedError unless @authed
 
-      transceive(cmd: CMD_CHANGE_KEY_SETTING, data: key_setting.to_uint, tx: :encrypt)
+      transceive(cmd: CMD_CHANGE_KEY_SETTING, data: key_setting.export, tx: :encrypt)
     end
 
     def get_file_ids
@@ -426,7 +428,7 @@ module Mifare
       file_setting = FILE_SETTING.new
       file_setting.type = FILE_TYPE.key(received_data.shift)
       file_setting.communication = FILE_COMMUNICATION.key(received_data.shift)
-      file_setting.permission = FILE_PERMISSION.new.import(received_data.shift(2).to_uint)
+      file_setting.permission = FILE_PERMISSION.import(received_data.shift(2).to_uint)
 
       case file_setting.type
       when :std_data_file, :backup_data_file
@@ -448,7 +450,7 @@ module Mifare
     def change_file_setting(id, file_setting)
       buffer = []
       buffer.append_uint(FILE_COMMUNICATION.fetch(file_setting.communication), 1)
-      buffer.append_uint(file_setting.permission.to_uint, 2)
+      buffer.append_uint(file_setting.permission.export, 2)
 
       transceive(cmd: CMD_CHANGE_FILE_SETTING, plain_data: id, data: buffer, tx: :encrypt)
     end
@@ -456,7 +458,7 @@ module Mifare
     def create_file(id, file_setting)
       buffer = [id]
       buffer.append_uint(FILE_COMMUNICATION.fetch(file_setting.communication), 1)
-      buffer.append_uint(file_setting.permission.to_uint, 2)
+      buffer.append_uint(file_setting.permission.export, 2)
 
       case file_setting.type
       when :std_data_file, :backup_data_file

@@ -102,16 +102,16 @@ class PICC
     buffer = [CMD_RATS, 0x50 | @cid]
     received_data = @pcd.picc_transceive(buffer)
 
-    dri, dsi = process_ats(received_data)
+    process_ats(received_data)
 
     # Send PPS (Protocol and Parameter Selection Request)
-    buffer = [CMD_PPS | @cid, 0x11, (dsi << 2) | dri]
+    buffer = [CMD_PPS | @cid, 0x11, (@dsi << 2) | @dri]
     received_data = @pcd.picc_transceive(buffer)
     raise UnexpectedDataError, 'Incorrect response' if received_data[0] != (0xD0 | @cid)
 
     # Set PCD baud rate
-    @pcd.transceiver_baud_rate(:tx, dri)
-    @pcd.transceiver_baud_rate(:rx, dsi)
+    @pcd.transceiver_baud_rate(:tx, @dri)
+    @pcd.transceiver_baud_rate(:rx, @dsi)
 
     @block_number = 0
     @max_frame_size = [64, @fsc].min
@@ -203,8 +203,8 @@ class PICC
         ds &= dr
       end
 
-      dri = choose_d(dr)
-      dsi = choose_d(ds)
+      @dri = choose_d(dr)
+      @dsi = choose_d(ds)
     end
 
     # Frame: TB
@@ -234,8 +234,6 @@ class PICC
 
     # Start-up guard time
     sleep 0.000302 * sgft
-
-    return dri, dsi
   end
 
   def handle_wtx(data)
