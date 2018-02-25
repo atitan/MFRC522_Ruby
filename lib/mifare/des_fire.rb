@@ -1,5 +1,5 @@
 module Mifare
-  class DESFire < ::ISO144434
+  class DESFire < ::PICC
     # Security Related Commands
     CMD_DES_AUTH                  = 0x1A # Authenticate with DES, 2K3DES, 3K3DES key
     CMD_AES_AUTH                  = 0xAA # Authenticate with AES-128 key
@@ -169,7 +169,7 @@ module Mifare
     end
 
     def deselect
-      super
+      iso_deselect
       invalid_auth
     end
 
@@ -204,7 +204,7 @@ module Mifare
       received_data = []
       card_status = nil
       loop do
-        receive_buffer = super(buffer.shift(@max_inf_size))
+        receive_buffer = iso_transceive(buffer.shift(@max_inf_size))
 
         card_status = receive_buffer.shift
         received_data.concat(receive_buffer)
@@ -592,23 +592,6 @@ module Mifare
       raise UnexpectedDataError, 'Application ID overflow' if id < 0 || id >= (1 << 24)
 
       [].append_uint(id, 3)
-    end
-
-    def crc32(*datas)
-      crc = 0xFFFFFFFF
-
-      datas.each do |data|
-        data = [data] unless data.is_a? Array
-        data.each do |byte|
-          crc ^= byte
-          8.times do
-            flag = crc & 0x01 > 0
-            crc >>= 1
-            crc ^= 0xEDB88320 if flag
-          end
-        end
-      end
-      crc
     end
 
     # Remove trailing padding bytes

@@ -6,13 +6,15 @@ module Mifare
 
     def initialize(pcd, uid, sak)
       super
-      @model_c = false
 
       # Check if Ultralight C
-      if support_3des_auth?
+      if @model_c = support_3des_auth?
         extend UltralightC
-        @model_c = true
       end
+    end
+
+    def transceive(send_data, accept_timeout)
+      picc_transceive(send_data, accept_timeout)
     end
 
     def read(block_addr)
@@ -50,8 +52,7 @@ module Mifare
         result = false
       end
 
-      resume_communication
-
+      restart_communication
       result
     end
   end

@@ -32,7 +32,7 @@ module Mifare
       verification = auth_key.decrypt(received_data)
 
       if random_number.rotate != verification
-        resume_communication
+        restart_communication
         return @authed = false
       end
 

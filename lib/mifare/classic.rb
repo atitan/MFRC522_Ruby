@@ -9,6 +9,10 @@ module Mifare
     CMD_RESTORE     = 0xC2  # Reads the contents of a block into the internal data register.
     CMD_TRANSFER    = 0xB0  # Writes the contents of the internal data register to a block.
 
+    def transceive(send_data, accept_timeout)
+      picc_transceive(send_data, accept_timeout)
+    end
+
     def auth(block_addr, key = {})
       if key[:a].nil? && key[:b].nil?
         raise UnexpectedDataError, 'Missing key data'
