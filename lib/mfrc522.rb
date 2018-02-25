@@ -27,8 +27,6 @@ class MFRC522
   PICC_SEL_CL2      = 0x95  # Anti collision/Select, Cascade Level 2
   PICC_SEL_CL3      = 0x97  # Anti collision/Select, Cascade Level 3
   PICC_HLTA         = 0x50  # HaLT command, Type A. Instructs an ACTIVE PICC to go to state HALT.
-  # Mifare Acknowledge
-  PICC_MF_ACK       = 0x0A
 
   # PCD commands
   PCD_Idle          = 0x00  # no action, cancels current command execution
@@ -135,6 +133,12 @@ class MFRC522
 
   # Reset PCD config to default
   def pcd_config_reset
+    # Stop current command
+    write_spi(CommandReg, PCD_Idle)
+
+    # Stop crypto1 communication
+    mifare_crypto1_deauthenticate
+
     # Clear ValuesAfterColl bit
     write_spi_clear_bitmask(CollReg, 0x80)
 
@@ -459,7 +463,7 @@ class MFRC522
   def picc_transceive(send_data, accept_timeout = false)
     send_data = append_crc(send_data)
 
-    puts "Sending Data: #{send_data.map{|x|x.to_s(16).rjust(2,'0').upcase}}" if ENV['DEBUG']
+    puts "Sending Data: #{send_data.map{|x|x.to_bytehex}}" if ENV['DEBUG']
 
     # Transfer data
     status, received_data, valid_bits = communicate_with_picc(PCD_Transceive, send_data)
@@ -467,7 +471,7 @@ class MFRC522
     raise PICCTimeoutError if status == :status_picc_timeout
     raise CommunicationError, status if status != :status_ok
 
-    puts "Received Data: #{received_data.map{|x|x.to_s(16).rjust(2,'0').upcase}}" if ENV['DEBUG']
+    puts "Received Data: #{received_data.map{|x|x.to_bytehex}}" if ENV['DEBUG']
 
     # Data exists, check CRC and return
     if received_data.size > 1
@@ -476,10 +480,7 @@ class MFRC522
       return received_data[0..-3]
     end
 
-    raise UnexpectedDataError, 'Incorrect Mifare ACK format' if received_data.size != 1 || valid_bits != 4 # ACK is 4 bits long
-    raise MifareNakError, received_data[0] if received_data[0] != PICC_MF_ACK
-
-    received_data
+    return received_data, valid_bits
   end
 
   private

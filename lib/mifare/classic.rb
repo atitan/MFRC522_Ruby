@@ -8,9 +8,21 @@ module Mifare
     CMD_INCREMENT   = 0xC1  # Increments the contents of a block and stores the result in the internal data register.
     CMD_RESTORE     = 0xC2  # Reads the contents of a block into the internal data register.
     CMD_TRANSFER    = 0xB0  # Writes the contents of the internal data register to a block.
+    MF_ACK          = 0x0A  # Mifare Acknowledge
 
-    def transceive(send_data, accept_timeout)
-      picc_transceive(send_data, accept_timeout)
+    def initialize(pcd, uid, sak)
+      super
+      # Set transceive timeout to 15ms
+      @pcd.internal_timer(50)
+    end
+
+    def transceive(send_data, accept_timeout = false)
+      received_data, valid_bits = picc_transceive(send_data, accept_timeout, true)
+      unless valid_bits.nil?
+        raise UnexpectedDataError, 'Incorrect Mifare ACK format' if received_data.size != 1 || valid_bits != 4 # ACK is 4 bits long
+        raise MifareNakError, "Mifare NAK detected: 0x#{received_data[0].to_bytehex}" if received_data[0] != MF_ACK
+      end
+      received_data
     end
 
     def auth(block_addr, key = {})

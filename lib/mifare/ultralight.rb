@@ -3,9 +3,12 @@ module Mifare
     CMD_READ        = 0x30  # Reads 4 pages(16 bytes) from the PICC.
     CMD_WRITE       = 0xA2  # Writes 1 page(4 bytes) to the PICC.
     CMD_3DES_AUTH   = 0x1A  # Ultralight C 3DES Authentication.
+    MF_ACK          = 0x0A  # Mifare Acknowledge
 
     def initialize(pcd, uid, sak)
       super
+      # Set transceive timeout to 15ms
+      @pcd.internal_timer(50)
 
       # Check if Ultralight C
       if @model_c = support_3des_auth?
@@ -13,8 +16,13 @@ module Mifare
       end
     end
 
-    def transceive(send_data, accept_timeout)
-      picc_transceive(send_data, accept_timeout)
+    def transceive(send_data)
+      received_data, valid_bits = picc_transceive(send_data, false, true)
+      unless valid_bits.nil?
+        raise UnexpectedDataError, 'Incorrect Mifare ACK format' if received_data.size != 1 || valid_bits != 4 # ACK is 4 bits long
+        raise MifareNakError, "Mifare NAK detected: 0x#{received_data[0].to_bytehex}" if received_data[0] != MF_ACK
+      end
+      received_data
     end
 
     def read(block_addr)

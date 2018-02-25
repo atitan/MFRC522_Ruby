@@ -224,7 +224,7 @@ module Mifare
 
       unless error_msg.empty?
         invalid_auth
-        raise ReceiptStatusError, "0x#{card_status.to_s(16).rjust(2, '0').upcase} - #{error_msg}"
+        raise ReceiptStatusError, "0x#{card_status.to_bytehex} - #{error_msg}"
       end
 
       if expect && expect != card_status

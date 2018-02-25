@@ -1,9 +1,9 @@
 class PICC
   FSCI_to_FSC = [16, 24, 32, 40, 48, 64, 96, 128, 256]
 
-  CMD_RATS              = 0xE0
-  CMD_PPS               = 0xD0
-  CMD_DESELECT          = 0xC2
+  CMD_RATS      = 0xE0
+  CMD_PPS       = 0xD0
+  CMD_DESELECT  = 0xC2
 
   attr_reader :uid
   attr_reader :sak
@@ -24,8 +24,13 @@ class PICC
     @iso_selected = false # If card is in iso mode
   end
 
-  def picc_transceive(send_data, accept_timeout = false)
-    @pcd.picc_transceive(send_data, accept_timeout)
+  def picc_transceive(send_data, accept_timeout = false, need_bits = false)
+    received_data, valid_bits = @pcd.picc_transceive(send_data, accept_timeout)
+    if need_bits
+      return received_data, valid_bits
+    else
+      return received_data
+    end
   end
 
   # Wrapper for handling ISO protocol
