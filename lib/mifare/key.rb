@@ -12,25 +12,42 @@ module Mifare
       init_cipher
     end
 
+    def padding_mode(mode)
+      if mode != :zero || mode != :iso7816
+        raise UsageError, 'Unknown padding mode'
+      end
+      @padding_mode = mode
+    end
+
     def key
       @key.bytes
     end
 
-    def encrypt(data, cbc_mode = :send)
+    def encrypt(data, cbc_mode: :send, data_length: nil)
       @cipher.encrypt
 
       # Add padding if not a complete block
-      until data.size % @block_size == 0
-        data << 0x00
+      if data.size % @block_size != 0
+        data << 0x80 if @padding_mode == :iso7816
+        until data.size % @block_size == 0
+          data << 0x00
+        end
       end
       
       cbc_crypt(data, cbc_mode)
     end
 
-    def decrypt(data, cbc_mode = :receive)
+    def decrypt(data, cbc_mode: :receive, data_length: nil)
       @cipher.decrypt
 
-      cbc_crypt(data, cbc_mode)
+      data = cbc_crypt(data, cbc_mode)
+      if @padding_mode == :iso7816
+        str = data.pack('C*')
+        str.sub! /#{0x80.chr}#{0x00.chr}*\z/, ''
+        str.bytes
+      else
+        data[0...data_length]
+      end
     end
 
     def clear_iv
@@ -42,7 +59,7 @@ module Mifare
       data = Array.new(@block_size, 0)
 
       clear_iv
-      data = encrypt(data, :receive)
+      data = encrypt(data, cbc_mode: :receive)
 
       @cmac_subkey1 = bit_shift_left(data)
       @cmac_subkey1[-1] ^= r if data[0] & 0x80 != 0
@@ -53,7 +70,7 @@ module Mifare
 
     def calculate_cmac(data)
       if @cmac_subkey1.nil? || @cmac_subkey2.nil?
-        raise 'Generate subkeys before calculating CMAC'
+        raise UsageError, 'Generate subkeys before calculating CMAC'
       end
 
       # Separate from input object

@@ -7,14 +7,18 @@ module Mifare
     CMD_CHANGE_KEY_SETTING        = 0x54 # Changes the master key settings on PICC and application level.
     CMD_GET_KEY_VERSION           = 0x64 # Reads out the current key version of any key stored on the PICC.
     CMD_CHANGE_KEY                = 0xC4 # Changes any key stored on the PICC.
+    CMD_SET_CONFIGURATION         = 0x5C # Configures and pre-personalizes the card with app default key, UID, and ATS string setup
 
     # PICC Level Commands
     CMD_CREATE_APP                = 0xCA # Creates new applications on the PICC.
     CMD_DELETE_APP                = 0xDA # Permanently deactivates applications on the PICC.
     CMD_GET_APP_IDS               = 0x6A # Returns the Application IDentifiers of all applications on a PICC.
     CMD_SELECT_APP                = 0x5A # Selects one specific application for further access.
+    CMD_FREE_MEMORY               = 0x6E # Returns the free memory available on the card
+    CMD_GET_DF_NAMES              = 0x6D # Returns the DF names
     CMD_GET_CARD_VERSION          = 0x60 # Returns manufacturing related data of the PICC.
     CMD_FORMAT_CARD               = 0xFC # Releases the PICC user memory.
+    CMD_GET_CARD_UID              = 0x51 # Returns the UID
 
     # Application Level Commands
     CMD_GET_FILE_IDS              = 0x6F # Returns the File IDentifiers of all active files within the currently selected application.
@@ -179,7 +183,7 @@ module Mifare
       iso_deselect
     end
 
-    def transceive(cmd: , plain_data: [], data: [], tx: nil, rx: nil, expect: nil, return_data: nil, receive_length: nil)
+    def transceive(cmd: , plain_data: [], data: [], tx: nil, rx: nil, expect: nil, return_data: nil, receive_length: nil, encrypt_padding: nil)
       # Session key is needed for encryption
       if (tx == :encrypt || rx == :encrypt) && !@authed
         raise UnauthenticatedError
@@ -190,6 +194,10 @@ module Mifare
       data = data.is_a?(Array) ? data.dup : [data]
 
       buffer = [cmd] + plain_data
+
+      if @authed
+        @session_key.padding_mode((encrypt_padding.nil?) ? :zero : :iso7816)
+      end
 
       if tx == :encrypt
         # Calculate CRC on whole frame
@@ -248,8 +256,9 @@ module Mifare
         if receive_length.nil?
           raise UsageError, 'Lack of receive length for removing padding'
         end
-        received_data = @session_key.decrypt(received_data)
-        received_data = remove_padding_bytes(received_data, receive_length)
+        @session_key.padding_mode((receive_length == 0) ? :iso7816 : :zero)
+        receive_length += 4 # CRC32
+        received_data = @session_key.decrypt(received_data, data_length: receive_length)
         received_crc = received_data.pop(4).to_uint
         crc = crc32(received_data, card_status)
         if crc != received_crc
@@ -263,6 +272,7 @@ module Mifare
     def auth(key_number, auth_key)
       cmd = (auth_key.type == :des) ? CMD_DES_AUTH : CMD_AES_AUTH
       auth_key.clear_iv
+      auth_key.padding_mode(:zero)
 
       # Ask for authentication
       received_data = transceive(cmd: cmd, data: key_number, expect: ST_ADDITIONAL_FRAME)
@@ -310,7 +320,7 @@ module Mifare
     end
 
     def get_app_ids
-      ids = transceive(cmd: CMD_GET_APP_IDS)
+      ids = transceive(cmd: CMD_GET_APP_IDS, rx: :mac)
 
       return ids if ids.empty?
 
@@ -337,7 +347,7 @@ module Mifare
 
       buffer = convert_app_id(id) + [key_setting.export, KEY_TYPE.fetch(cipher_suite) | key_count]
 
-      transceive(cmd: CMD_CREATE_APP, data: buffer)
+      transceive(cmd: CMD_CREATE_APP, data: buffer, rx: :mac)
     end
 
     def delete_app(id)
@@ -356,14 +366,55 @@ module Mifare
       )
     end
 
+    def get_free_memory
+      transceive(cmd: CMD_FREE_MEMORY)
+    end
+
+    def get_df_names
+      raise UsageError, 'App 0 should be selected before calling' unless @selected_app == 0
+
+      transceive(cmd: CMD_GET_DF_NAMES)
+    end
+
+    def get_card_uid
+      raise UnauthenticatedError unless @authed
+
+      transceive(cmd: CMD_GET_CARD_UID, rx: :encrypt, receive_length: 7)
+    end
+
     def format_card
       raise UnauthenticatedError unless @authed
 
       transceive(cmd: CMD_FORMAT_CARD)
     end
 
+    def set_configuration_byte(disable_format, enable_random_uid)
+      raise UnauthenticatedError unless @authed
+
+      flag = 0
+      flag |= 0x01 if disable_format
+      flag |= 0x02 if enable_random_uid
+
+      transceive(cmd: CMD_SET_CONFIGURATION, plain_data: 0x00, data: [flag], tx: :encrypt)
+    end
+
+    def set_default_key(key)
+      raise UnauthenticatedError unless @authed
+
+      buffer = key.key
+      buffer.append_uint(key.version, 1)
+
+      transceive(cmd: CMD_SET_CONFIGURATION, plain_data: 0x01, data: buffer, tx: :encrypt)
+    end
+
+    def set_ats(ats)
+      raise UnauthenticatedError unless @authed
+
+      transceive(cmd: CMD_SET_CONFIGURATION, plain_data: 0x02, data: ats, tx: :encrypt, encrypt_padding: :iso7816)
+    end
+
     def get_key_version(key_number)
-      received_data = transceive(cmd: CMD_GET_KEY_VERSION, data: key_number)
+      received_data = transceive(cmd: CMD_GET_KEY_VERSION, data: key_number, rx: :mac)
 
       received_data[0]
     end
@@ -371,7 +422,7 @@ module Mifare
     def change_key(key_number, new_key, curr_key = nil)
       raise UnauthenticatedError unless @authed
       raise UsageError, 'Invalid key number' if key_number > 13
-      
+
       cryptogram = new_key.key
 
       same_key = (key_number == @authed)
@@ -396,12 +447,13 @@ module Mifare
       end
 
       # Encrypt cryptogram
+      @session_key.padding_mode(:zero)
       buffer = [key_number] + @session_key.encrypt(cryptogram)
+
+      transceive(cmd: CMD_CHANGE_KEY, data: buffer, rx: :mac)
 
       # Change current used key will revoke authentication
       invalid_auth if same_key
-
-      transceive(cmd: CMD_CHANGE_KEY, data: buffer)
     end
 
     def get_key_setting
@@ -415,7 +467,7 @@ module Mifare
     def change_key_setting(key_setting)
       raise UnauthenticatedError unless @authed
 
-      transceive(cmd: CMD_CHANGE_KEY_SETTING, data: key_setting.export, tx: :encrypt)
+      transceive(cmd: CMD_CHANGE_KEY_SETTING, data: key_setting.export, tx: :encrypt, rx: :mac)
     end
 
     def get_file_ids
@@ -588,20 +640,6 @@ module Mifare
       raise UsageError, 'Application ID overflow' if id < 0 || id >= (1 << 24)
 
       [].append_uint(id, 3)
-    end
-
-    # Remove trailing padding bytes
-    def remove_padding_bytes(data, length)
-      if length == 0
-        # reading data until its limit uses ISO 9797-1 padding format
-        str = data.pack('C*')
-        str.sub! /#{0x80.chr}#{0x00.chr}*\z/, ''
-        str.bytes
-      else
-        # otherwise they're padded with 0s
-        # data length + 4 bytes CRC
-        data[0...length + 4]
-      end
     end
 
     def check_status_code(code)
