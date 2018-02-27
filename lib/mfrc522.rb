@@ -106,6 +106,7 @@ class MFRC522
     @spi_chip = chip_option[chip]
     @spi_spd = spd
     @timer = timer
+    @buffer_size = 64
 
     # Power it up
     nrstpd_pin = PiPiper::Pin.new(pin: nrstpd, direction: :out)

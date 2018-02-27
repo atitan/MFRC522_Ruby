@@ -26,12 +26,12 @@ If not, adjust the parameters when calling MFRC522 initialize method.
 
 The following models are fully supported and have been tested by the author:
 
-*   Mifare Classic
-*   Mifare Ultralight
-*   Mifare Ultralight C
-*   Mifare DESFire EV1
+*   MIFARE Classic
+*   MIFARE Ultralight
+*   MIFARE Ultralight C
+*   MIFARE DESFire EV1, without ISO-7816 APDU
 
-If the card model you want to use is not on the list, you can implement it on top of the `PICC` or `ISO144434` class.
+If the card model you want to use is not on the list, you can implement it on top of the `PICC` class.
 
 The library provide basic access to ISO 14443-3 and ISO 14443-4 protocol, so it shouldn't be a problem.
 
