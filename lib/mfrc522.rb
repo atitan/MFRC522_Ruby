@@ -208,7 +208,7 @@ class MFRC522
 
   # Instruct PICC in ACTIVE state go to HALT state
   def picc_halt
-    buffer = append_crc([PICC_HLTA, 0])
+    buffer = [PICC_HLTA, 0].append_crc16
 
     status, _received_data, _valid_bits = communicate_with_picc(PCD_Transceive, buffer)
 
@@ -288,7 +288,7 @@ class MFRC522
           buffer[6] = (buffer[2] ^ buffer[3] ^ buffer[4] ^ buffer[5]) # Block Check Character
 
           # Append CRC to buffer
-          buffer = append_crc(buffer)
+          buffer.append_crc16
         else
           tx_last_bits = current_level_known_bits % 8
           uid_full_byte = current_level_known_bits / 8
@@ -363,7 +363,7 @@ class MFRC522
       # Check the result of full select
       # Select Acknowledge is 1 byte + CRC16
       raise UnexpectedDataError, 'Unknown SAK format' if received_data.size != 3 || valid_bits != 0 
-      raise IncorrectCRCError unless check_crc(received_data)
+      raise IncorrectCRCError unless received_data.check_crc16(true)
 
       sak = received_data[0]
       break if (sak & 0x04) == 0 # No more cascade level
@@ -462,7 +462,7 @@ class MFRC522
 
   # Append CRC to buffer and check CRC or Mifare acknowledge
   def picc_transceive(send_data, accept_timeout = false)
-    send_data = append_crc(send_data)
+    send_data.append_crc16
 
     puts "Sending Data: #{send_data.map{|x|x.to_bytehex}}" if ENV['DEBUG']
 
@@ -476,9 +476,9 @@ class MFRC522
 
     # Data exists, check CRC and return
     if received_data.size > 1
-      raise IncorrectCRCError unless check_crc(received_data)
+      raise IncorrectCRCError unless received_data.check_crc16(true)
 
-      return received_data[0..-3]
+      return received_data
     end
 
     return received_data, valid_bits

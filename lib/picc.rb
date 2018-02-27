@@ -161,20 +161,6 @@ class PICC
         return n & 0xFFFF;
     }
 
-  def crc16(*datas)
-    crc = 0x6363
-
-    datas.each do |data|
-      data = [data] unless data.is_a? Array
-      data.each do |byte|
-        n2 = (crc ^ byte & 0xFF)) & 0xFF
-        n3 = (n2 ^ n2 << 4) & 0xFF
-        crc = (crc >> 8 ^ n3 << 8 ^ n3 << 3 ^ n3 >> 4)
-      end
-    end
-    crc & 0xFFFF
-  end
-
   def crc32(*datas)
     crc = 0xFFFFFFFF
 
