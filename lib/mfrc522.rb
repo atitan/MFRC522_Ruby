@@ -106,7 +106,6 @@ class MFRC522
     @spi_chip = chip_option[chip]
     @spi_spd = spd
     @timer = timer
-    @buffer_size = 64
 
     # Power it up
     nrstpd_pin = PiPiper::Pin.new(pin: nrstpd, direction: :out)
@@ -194,6 +193,10 @@ class MFRC522
       write_spi_set_bitmask(RFCfgReg, ((level + 1) << 4))
     end
     (read_spi(RFCfgReg) & 0x70) >> 4
+  end
+
+  def buffer_size
+    64
   end
 
   # Wakes PICC from HALT or IDLE to ACTIVE state
@@ -387,54 +390,6 @@ class MFRC522
     status && uid == new_uid
   end
 
-  # Lookup PICC name using sak
-  def identify_model(sak)
-    # SAK coding separation reference:
-    # http://cache.nxp.com/documents/application_note/AN10833.pdf
-    # http://www.nxp.com/documents/application_note/130830.pdf
-    if sak & 0x04 != 0
-      return :picc_uid_not_complete
-    end
-
-    if sak & 0x02 != 0
-      return :picc_reserved_future_use
-    end
-
-    if sak & 0x08 != 0
-      if sak & 0x10 != 0
-        return :picc_mifare_4k
-      end
-
-      if sak & 0x01 != 0
-        return :picc_mifare_mini
-      end
-      
-      return :picc_mifare_1k
-    end
-
-    if sak & 0x10 != 0
-      if sak & 0x01 != 0
-        return :picc_mifare_plus_4k_sl2
-      end
-        
-      return :picc_mifare_plus_2k_sl2
-    end
-
-    if sak == 0x00
-      return :picc_mifare_ultralight
-    end
-
-    if sak & 0x20 != 0
-      return :picc_iso_14443_4
-    end
-
-    if sak & 0x40 != 0
-      return :picc_iso_18092
-    end
-
-    return :picc_unknown
-  end
-
   # Start Crypto1 communication between reader and Mifare PICC
   #
   # PICC must be selected before calling for authentication
@@ -548,14 +503,19 @@ class MFRC522
     loop do
       irq = read_spi(ComIrqReg)
       break if (irq & wait_irq) != 0
-      return :status_picc_timeout if (irq & 0x01) != 0
+      if (irq & 0x01) != 0 && (read_spi(Status2Reg) & 0x07) != 0x05
+        return :status_picc_timeout
+      end
       return :status_pcd_timeout if i == 0
       i -= 1
     end
 
     # Check for error
     error = read_spi(ErrorReg)
-    return :status_error if (error & 0x13) != 0 # BufferOvfl ParityErr ProtocolErr
+    return :status_buffer_overflow if (error & 0x10) != 0
+    return :status_crc_error if (error & 0x04) != 0
+    return :status_parity_error if (error & 0x02) != 0
+    return :status_protocol_error if (error & 0x01) != 0
 
     # Receiving data
     received_data = []
@@ -572,39 +532,4 @@ class MFRC522
 
     return status, received_data, valid_bits
   end
-
-  def calculate_crc(data)
-    write_spi(CommandReg, PCD_Idle)               # Stop any active command.
-    write_spi(DivIrqReg, 0x04)                    # Clear the CRCIRq interrupt request bit
-    write_spi_set_bitmask(FIFOLevelReg, 0x80)     # FlushBuffer = 1, FIFO initialization
-    write_spi(FIFODataReg, data)                  # Write data to the FIFO
-    write_spi(CommandReg, PCD_CalcCRC)            # Start the calculation
-
-    # Wait for the command to complete
-    i = 5000
-    loop do
-      irq = read_spi(DivIrqReg)
-      break if (irq & 0x04) != 0
-      raise PCDTimeoutError, 'Error calculating CRC' if i == 0
-      i -= 1
-    end
-
-    write_spi(CommandReg, PCD_Idle)               # Stop calculating CRC for new content in the FIFO.
-
-    [read_spi(CRCResultRegL), read_spi(CRCResultRegH)]
-  end
-
-  def append_crc(data)
-    data + calculate_crc(data)
-  end
-
-  def check_crc(data)
-    raise UnexpectedDataError, 'Data too short for CRC check' if data.size < 3
-
-    data = data.dup
-    crc = data.pop(2)
-
-    crc == calculate_crc(data)
-  end
-
 end

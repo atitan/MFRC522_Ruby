@@ -149,17 +149,54 @@ class PICC
     @halted = @pcd.picc_halt
   end
 
-  protected
+  def self.identify_model(sak)
+    # SAK coding separation reference:
+    # https://www.nxp.com/docs/en/application-note/AN10833.pdf
+    # https://www.nxp.com/docs/en/application-note/AN10834.pdf
+    if sak & 0x04 != 0
+      return :picc_uid_not_complete
+    end
 
-  public int crc16(final byte[] array) {
-        int n = 25443;
-        for (int i = 0; i < array.length; ++i) {
-            final int n2 = (n ^ (array[i] & 0xFF)) & 0xFF;
-            final int n3 = (n2 ^ n2 << 4) & 0xFF;
-            n = (n >> 8 ^ n3 << 8 ^ n3 << 3 ^ n3 >> 4);
-        }
-        return n & 0xFFFF;
-    }
+    if sak & 0x02 != 0
+      return :picc_reserved_future_use
+    end
+
+    if sak & 0x08 != 0
+      if sak & 0x10 != 0
+        return :picc_mifare_4k
+      end
+
+      if sak & 0x01 != 0
+        return :picc_mifare_mini
+      end
+
+      return :picc_mifare_1k
+    end
+
+    if sak & 0x10 != 0
+      if sak & 0x01 != 0
+        return :picc_mifare_plus_4k_sl2
+      end
+
+      return :picc_mifare_plus_2k_sl2
+    end
+
+    if sak == 0x00
+      return :picc_mifare_ultralight
+    end
+
+    if sak & 0x20 != 0
+      return :picc_iso_14443_4
+    end
+
+    if sak & 0x40 != 0
+      return :picc_iso_18092
+    end
+
+    return :picc_unknown
+  end
+
+  protected
 
   def crc32(*datas)
     crc = 0xFFFFFFFF
