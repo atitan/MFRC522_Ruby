@@ -10,6 +10,8 @@ Inspired by [miguelbalboa/rfid](https://github.com/miguelbalboa/rfid) and [Elmue
 
 ## Installation
 
+Ruby version 2.3+ is required.
+
 You can install it by doing `gem install mfrc522` or using bundler.
 
 ## Documentation

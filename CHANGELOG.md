@@ -1,3 +1,19 @@
+## MFRC522 2.0.0  ##
+
+*   API CHANGED: Module `Mifare` renamed to `MIFARE`
+*   API CHANGED: Method `resume_communication` renamed to `restart_communication`
+*   API CHANGED: Class `ISO144434` merged into class `PICC`
+*   API CHANGED: Method `select` and `deselect` in Class `ISO144434` are renamed to `iso_select` and `iso_deselect` respectively
+*   API CHANGED: Method `transceive` in class `PICC` renamed to `picc_transceive`
+*   API CHANGED: Method `transceive` in class `ISO144434` renamed to `iso_transceive`
+*   API CHANGED: Method `identify_model` in class `MFRC522` moved to class `PICC`
+*   NEW API: Exception `UsageError` introduced for user-input error at method level
+*   NEW API: Class `MIFARE::Key` added method `padding_mode` to control padding method on every encrypt/decrypt operation
+*   NEW API: Class `MIFARE::DESFire` added some methods to reflect new commands supported by DESfire EV1
+*   NEW API: Class `MIFARE::UltraLightEV1` introduced
+*   NEW API: Class `MIFARE::Plus` introduced
+*   FIXED: Broken Structs in class `MIFARE::DESFire`
+
 ## MFRC522 1.0.6  ##
 
 *   Fix broken dirty buffer detection in `picc_select`.
