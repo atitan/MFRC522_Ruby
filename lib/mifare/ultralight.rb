@@ -1,4 +1,4 @@
-module Mifare
+module MIFARE
   class Ultralight < ::PICC
     CMD_READ                = 0x30  # Reads 4 pages(16 bytes) from the PICC.
     CMD_FAST_READ           = 0x3A  # Reads pages within requested range

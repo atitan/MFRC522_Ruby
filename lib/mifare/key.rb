@@ -1,4 +1,4 @@
-module Mifare
+module MIFARE
   class Key
     attr_reader :type
     attr_reader :cipher_suite

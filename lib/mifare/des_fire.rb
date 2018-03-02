@@ -1,4 +1,4 @@
-module Mifare
+module MIFARE
   class DESFire < ::PICC
     # Security Related Commands
     CMD_DES_AUTH                  = 0x1A # Authenticate with DES, 2K3DES, 3K3DES key

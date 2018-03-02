@@ -1,4 +1,4 @@
-module Mifare
+module MIFARE
   module UltralightC
     def auth(auth_key)
       if auth_key.cipher_suite != 'des-ede-cbc'

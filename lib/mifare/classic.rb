@@ -1,4 +1,4 @@
-module Mifare
+module MIFARE
   class Classic < ::PICC
     CMD_AUTH_KEY_A  = 0x60  # Perform authentication with Key A
     CMD_AUTH_KEY_B  = 0x61  # Perform authentication with Key B
@@ -73,7 +73,15 @@ module Mifare
     def read_value(block_addr)
       received_data = read(block_addr)
 
-      received_data[0..3].to_sint
+      value = received_data[0..3].to_sint
+      value1 = ~(received_data[4..7].to_sint)
+      value2 = received_data[8..11].to_sint
+
+      if value != value1 || value != value2
+        raise UnexpectedDataError, 'Invalid value block'
+      end
+
+      value
     end
 
     def write_value(block_addr, value)
@@ -102,9 +110,9 @@ module Mifare
       buffer[10] = buffer[2]
       buffer[11] = buffer[3]
       buffer[12] = block_addr
-      buffer[13] = ~block_addr
+      buffer[13] = ~buffer[12]
       buffer[14] = buffer[12]
-      buffer[15] = buffer[13]
+      buffer[15] = ~buffer[12]
     
       write(block_addr, buffer)
     end

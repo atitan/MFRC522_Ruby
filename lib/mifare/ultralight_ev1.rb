@@ -1,4 +1,4 @@
-module Mifare
+module MIFARE
   module UltralightEV1
     def auth(passwd)
       passwd_bytes = [passwd].pack('H*').bytes

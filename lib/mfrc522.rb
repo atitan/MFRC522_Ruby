@@ -7,13 +7,8 @@ require 'core_ext'
 require 'exceptions'
 
 require 'picc'
-require 'iso144434'
 
-require 'mifare/key'
-require 'mifare/classic'
-require 'mifare/ultralight'
-require 'mifare/ultralight_c'
-require 'mifare/des_fire'
+Dir.glob('mifare/*.rb', &method(:require))
 
 include PiPiper
 
@@ -503,9 +498,7 @@ class MFRC522
     loop do
       irq = read_spi(ComIrqReg)
       break if (irq & wait_irq) != 0
-      if (irq & 0x01) != 0 && (read_spi(Status2Reg) & 0x07) != 0x05
-        return :status_picc_timeout
-      end
+      return :status_picc_timeout if (irq & 0x01) != 0
       return :status_pcd_timeout if i == 0
       i -= 1
     end
