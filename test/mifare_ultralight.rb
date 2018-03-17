@@ -40,3 +40,5 @@ if c.model_c?
     raise 'Auth test Failed'
   end
 end
+
+c.halt

@@ -81,3 +81,5 @@ num.each_with_index do |x, i|
     end
   end
 end
+
+c.halt

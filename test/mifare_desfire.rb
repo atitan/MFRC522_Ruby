@@ -561,3 +561,6 @@ if c.get_app_ids.empty?
 else
   raise 'App still exists after formatting'
 end
+
+c.deselect
+c.halt

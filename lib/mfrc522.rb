@@ -225,7 +225,7 @@ class MFRC522
   # Select PICC for further communication
   #
   # PICC must be in state ACTIVE
-  def picc_select
+  def picc_select(disable_anticollision = false)
     #  Description of buffer structure:
     #
     #  Byte 0: SEL   Indicates the Cascade Level: PICC_CMD_SEL_CL1, PICC_CMD_SEL_CL2 or PICC_CMD_SEL_CL3
@@ -311,6 +311,8 @@ class MFRC522
 
         if status != :status_ok && status != :status_collision
           raise CommunicationError, status
+        elsif status == :status_collision && disable_anticollision
+          raise CollisionError
         end
 
         if received_data.empty?
