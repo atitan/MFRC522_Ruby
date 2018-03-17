@@ -49,6 +49,10 @@ class Array
     zip(array2).map{|x, y| x ^ y }
   end
 
+  def to_bytehex
+    map{|x| x.to_bytehex}
+  end
+
   private
 
   def crc16

@@ -1,9 +1,10 @@
 class PICC
   FSCI_to_FSC = [16, 24, 32, 40, 48, 64, 96, 128, 256]
 
-  CMD_RATS      = 0xE0
-  CMD_PPS       = 0xD0
-  CMD_DESELECT  = 0xC2
+  CMD_RATS              = 0xE0
+  CMD_PPS               = 0xD0
+  CMD_DESELECT          = 0xC2
+  CMD_ADDITIONAL_FRAME  = 0xAF
 
   attr_reader :uid
   attr_reader :sak
@@ -104,13 +105,13 @@ class PICC
   def iso_select
     # Send RATS (Request for Answer To Select)
     buffer = [CMD_RATS, 0x50 | @cid]
-    received_data = @pcd.picc_transceive(buffer)
+    received_data = picc_transceive(buffer)
 
     process_ats(received_data)
 
     # Send PPS (Protocol and Parameter Selection Request)
     buffer = [CMD_PPS | @cid, 0x11, (@dsi << 2) | @dri]
-    received_data = @pcd.picc_transceive(buffer)
+    received_data = picc_transceive(buffer)
     raise UnexpectedDataError, 'Incorrect response' if received_data[0] != (0xD0 | @cid)
 
     # Set PCD baud rate
@@ -128,7 +129,7 @@ class PICC
   # Send S(DESELECT)
   def iso_deselect
     buffer = [CMD_DESELECT]
-    received_data = @pcd.picc_transceive(buffer)
+    received_data = picc_transceive(buffer)
 
     result = received_data[0] & 0xF7 == CMD_DESELECT
     @iso_selected = !result
@@ -229,6 +230,7 @@ private
     z = value & 0x01
 
     ((x | y) << 1) + (x | (~y & z))
+    0
   end
 
   # Gether information from ATS (Answer to Select)
@@ -296,7 +298,7 @@ private
   def handle_wtx(data)
     24.times do
       begin
-        received_data = @pcd.picc_transceive(data)
+        received_data = picc_transceive(data)
       rescue CommunicationError => e
         raise e unless e.is_a? PICCTimeoutError
 

@@ -80,19 +80,19 @@ module MIFARE
       :privileged_key,
       # Set if master key can be modified
       :masterkey_changeable,
-      # Set if listing requires master key
+      # Set if file management requires auth
       :file_management_without_auth,
-      # Set if create or delete requires master key
+      # Set if file configuration requires auth
       :file_configurable_without_auth,
       # Set if this setting can be modified
       :key_setting_changeable) do
-      def initialize(*data)
-        self[:privileged_key] = 0
-        self[:masterkey_changeable] = true
-        self[:file_management_without_auth] = true
-        self[:file_configurable_without_auth] = true
-        self[:key_setting_changeable] = true
+      def initialize(*)
         super
+        self.privileged_key = 0 if self.privileged_key.nil?
+        self.masterkey_changeable = true if self.masterkey_changeable.nil?
+        self.file_management_without_auth = true if self.file_management_without_auth.nil?
+        self.file_configurable_without_auth = true if self.file_configurable_without_auth.nil?
+        self.key_setting_changeable = true if self.key_setting_changeable.nil?
       end
 
       def self.import(byte)
@@ -106,11 +106,11 @@ module MIFARE
       end
 
       def export
-        output = (privileged_key << 4)
-        output |= 0x01 if masterkey_changeable
-        output |= 0x02 if file_management_without_auth
-        output |= 0x04 if file_configurable_without_auth
-        output |= 0x08 if key_setting_changeable
+        output = (self.privileged_key << 4)
+        output |= 0x01 if self.masterkey_changeable
+        output |= 0x02 if self.file_management_without_auth
+        output |= 0x04 if self.file_configurable_without_auth
+        output |= 0x08 if self.key_setting_changeable
         output
       end
     end
@@ -207,9 +207,8 @@ module MIFARE
 
       buffer.concat(data)
 
-      if tx != :encrypt && cmd != CMD_ADDITIONAL_FRAME && @authed
-        @cmac_buffer = buffer
-        cmac = @session_key.calculate_cmac(@cmac_buffer)
+      if tx != :encrypt && tx != :none && cmd != CMD_ADDITIONAL_FRAME && @authed
+        cmac = @session_key.calculate_cmac(buffer)
         # Only first 8 bytes of CMAC are transmitted
         buffer.concat(cmac[0..7]) if tx == :mac
       end
@@ -238,20 +237,7 @@ module MIFARE
         raise UnexpectedDataError, 'Card status does not match expected value'
       end
 
-      if rx != :encrypt && @authed
-        @cmac_buffer = [] if cmd != CMD_ADDITIONAL_FRAME
-        @cmac_buffer.concat(received_data) if card_status == ST_ADDITIONAL_FRAME
-
-        if received_data.size >= 8 && card_status == ST_SUCCESS
-          received_cmac = received_data.pop(8)
-          @cmac_buffer.concat(received_data + [card_status])
-          cmac = @session_key.calculate_cmac(@cmac_buffer)
-          # Only first 8 bytes of CMAC are transmitted
-          if cmac[0..7] != received_cmac
-            raise ReceiptIntegrityError
-          end
-        end
-      elsif rx == :encrypt
+      if rx == :encrypt
         if receive_length.nil?
           raise UsageError, 'Lack of receive length for removing padding'
         end
@@ -263,6 +249,13 @@ module MIFARE
         if crc != received_crc
           raise ReceiptIntegrityError
         end
+      elsif rx != :none && @authed && received_data.size >= 8 && card_status == ST_SUCCESS
+        received_cmac = received_data.pop(8)
+        cmac = @session_key.calculate_cmac(received_data + [card_status])
+        # Only first 8 bytes of CMAC are transmitted
+        if rx == :mac && cmac[0..7] != received_cmac
+          raise ReceiptIntegrityError
+        end
       end
 
       received_data
@@ -270,25 +263,26 @@ module MIFARE
 
     def auth(key_number, auth_key)
       cmd = (auth_key.type == :des) ? CMD_DES_AUTH : CMD_AES_AUTH
+      rand_size = (auth_key.cipher_suite == 'des-ede-cbc') ? 8 : 16
       auth_key.clear_iv
       auth_key.padding_mode(1)
 
       # Ask for authentication
-      received_data = transceive(cmd: cmd, data: key_number, expect: ST_ADDITIONAL_FRAME)
+      received_data = transceive(cmd: cmd, data: key_number, expect: ST_ADDITIONAL_FRAME, tx: :none, rx: :none)
 
       # Receive challenge from DESFire
-      challenge = auth_key.decrypt(received_data)
+      challenge = auth_key.decrypt(received_data, data_length: rand_size)
       challenge_rot = challenge.rotate
 
       # Generate random number and encrypt it with rotated challenge
-      random_number = SecureRandom.random_bytes(received_data.size).bytes
+      random_number = SecureRandom.random_bytes(rand_size).bytes
       response = auth_key.encrypt(random_number + challenge_rot)
 
       # Send challenge response
-      received_data = transceive(cmd: CMD_ADDITIONAL_FRAME, data: response)
+      received_data = transceive(cmd: CMD_ADDITIONAL_FRAME, data: response, tx: :none, rx: :none)
 
       # Check if verification matches rotated random_number
-      verification = auth_key.decrypt(received_data)
+      verification = auth_key.decrypt(received_data, data_length: rand_size)
 
       if random_number.rotate != verification
         halt
@@ -449,7 +443,7 @@ module MIFARE
       @session_key.padding_mode(1)
       buffer = [key_number] + @session_key.encrypt(cryptogram)
 
-      transceive(cmd: CMD_CHANGE_KEY, data: buffer, rx: :mac)
+      transceive(cmd: CMD_CHANGE_KEY, data: buffer, tx: :none, rx: :mac)
 
       # Change current used key will revoke authentication
       invalid_auth if same_key
@@ -632,7 +626,6 @@ module MIFARE
     def invalid_auth
       @authed = false
       @session_key = nil
-      @cmac_buffer = []
     end
 
     def convert_app_id(id)

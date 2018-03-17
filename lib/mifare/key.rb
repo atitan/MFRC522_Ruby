@@ -29,6 +29,7 @@ module MIFARE
 
       # Add padding if not a complete block
       if data.size % @block_size != 0
+        raise UsageError, 'Padding mode not set' unless @padding_mode
         data << 0x80 if @padding_mode == 2
         until data.size % @block_size == 0
           data << 0x00

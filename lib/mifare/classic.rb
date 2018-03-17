@@ -18,7 +18,8 @@ module MIFARE
 
     def transceive(send_data, accept_timeout = false)
       received_data, valid_bits = picc_transceive(send_data, accept_timeout, true)
-      unless valid_bits.nil?
+      return if received_data.nil? && valid_bits.nil? && accept_timeout
+      unless valid_bits == 0
         raise UnexpectedDataError, 'Incorrect Mifare ACK format' if received_data.size != 1 || valid_bits != 4 # ACK is 4 bits long
         raise MifareNakError, "Mifare NAK detected: 0x#{received_data[0].to_bytehex}" if received_data[0] != MF_ACK
       end
@@ -51,9 +52,7 @@ module MIFARE
     end
 
     def read(block_addr)
-      buffer = [CMD_READ, block_addr]
-
-      transceive(buffer)
+      transceive([CMD_READ, block_addr])
     end
 
     def write(block_addr, send_data)
@@ -61,10 +60,8 @@ module MIFARE
         raise UsageError, "Expect 16 bytes data, got: #{send_data.size} byte"
       end
 
-      buffer = [CMD_WRITE, block_addr]
-
       # Ask PICC if we can write to block_addr
-      transceive(buffer)
+      transceive([CMD_WRITE, block_addr])
 
       # Then start transfer our data
       transceive(send_data)
@@ -134,9 +131,7 @@ module MIFARE
 
     # Transfer: Writes the contents of the internal Transfer Buffer to a value block
     def transfer(block_addr)
-      buffer = [CMD_TRANSFER, block_addr]
-
-      transceive(buffer)
+      transceive([CMD_TRANSFER, block_addr])
     end
 
     private

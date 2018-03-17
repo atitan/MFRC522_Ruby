@@ -40,7 +40,7 @@ module MIFARE
 
     def transceive(send_data)
       received_data, valid_bits = picc_transceive(send_data, false, true)
-      unless valid_bits.nil?
+      unless valid_bits == 0
         raise UnexpectedDataError, 'Incorrect Mifare ACK format' if received_data.size != 1 || valid_bits != 4 # ACK is 4 bits long
         raise MifareNakError, "Mifare NAK detected: 0x#{received_data[0].to_bytehex}" if received_data[0] != MF_ACK
       end

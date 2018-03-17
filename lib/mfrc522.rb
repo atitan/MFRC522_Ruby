@@ -8,7 +8,13 @@ require 'exceptions'
 
 require 'picc'
 
-Dir.glob('mifare/*.rb', &method(:require))
+require 'mifare/key'
+require 'mifare/classic'
+require 'mifare/plus'
+require 'mifare/des_fire'
+require 'mifare/ultralight'
+require 'mifare/ultralight_c'
+require 'mifare/ultralight_ev1'
 
 include PiPiper
 
@@ -161,10 +167,10 @@ class MFRC522
     mod = {0 => 0x26, 1 => 0x15, 2 => 0x0A, 3 => 0x05}
 
     if value
+      write_spi(ModWidthReg, mod.fetch(value))
       value <<= 4
       value |= 0x80 if value != 0
       write_spi(reg.fetch(direction), value)
-      write_spi(ModWidthReg, mod.fetch(value))
     end
 
     (read_spi(reg.fetch(direction)) >> 4) & 0x07
@@ -412,23 +418,23 @@ class MFRC522
 
   # Append CRC to buffer and check CRC or Mifare acknowledge
   def picc_transceive(send_data, accept_timeout = false)
+    send_data = send_data.dup
     send_data.append_crc16
 
-    puts "Sending Data: #{send_data.map{|x|x.to_bytehex}}" if ENV['DEBUG']
+    puts "Sending Data: #{send_data.to_bytehex}" if ENV['DEBUG']
 
     # Transfer data
     status, received_data, valid_bits = communicate_with_picc(PCD_Transceive, send_data)
-    return [] if status == :status_picc_timeout && accept_timeout
+    return if status == :status_picc_timeout && accept_timeout
     raise PICCTimeoutError if status == :status_picc_timeout
     raise CommunicationError, status if status != :status_ok
 
-    puts "Received Data: #{received_data.map{|x|x.to_bytehex}}" if ENV['DEBUG']
+    puts "Received Data: #{received_data.to_bytehex}" if ENV['DEBUG']
+    puts "Valid bits: #{valid_bits}" if ENV['DEBUG']
 
-    # Data exists, check CRC and return
-    if received_data.size > 1
+    # Data exists, check CRC
+    if received_data.size > 2
       raise IncorrectCRCError unless received_data.check_crc16(true)
-
-      return received_data
     end
 
     return received_data, valid_bits
