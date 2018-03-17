@@ -12,7 +12,9 @@
 *   NEW API: Class `MIFARE::DESFire` added some methods to reflect new commands supported by DESfire EV1
 *   NEW API: Class `MIFARE::UltraLightEV1` introduced
 *   NEW API: Class `MIFARE::Plus` introduced
+*   NEW FEATURE: Method `picc_select` in `MFRC522` now accept parameter to disable anti-collision
 *   FIXED: Broken Structs in class `MIFARE::DESFire`
+*   FIXED: Transceive using baud rate over 106kbd
 
 ## MFRC522 1.0.6  ##
 

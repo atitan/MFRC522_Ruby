@@ -26,20 +26,25 @@ If not, adjust the parameters when calling MFRC522 initialize method.
 
 ## Supported RFID tags
 
-The following models are fully supported and have been tested by the author:
+Models supported and have been tested by the author:
 
 *   MIFARE Classic
 *   MIFARE Ultralight
 *   MIFARE Ultralight C
 *   MIFARE DESFire EV1, without ISO-7816 APDU
+*   MIFARE DESFire EV2, without ISO-7816 APDU and new features since EV1
+
+Models implemented but not tested:
+
+*   MIFARE Ultralight EV1
+
+Models under development:
+
+*   MIFARE Plus
 
 If the card model you want to use is not on the list, you can implement it on top of the `PICC` class.
 
-The library provide basic access to ISO 14443-3 and ISO 14443-4 protocol, so it shouldn't be a problem.
-
-## Known issue
-
-I can't get my reader to work at baud rate higher than 106kBd, so the baud rate negotiation in ISO 14443-4 will be fixed to 106kBd until I find the workaround.
+The library provide basic access to ISO 14443-3 and ISO 14443-4 protocol.
 
 ## Get started
 
