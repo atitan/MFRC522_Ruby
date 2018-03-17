@@ -167,9 +167,10 @@ class MFRC522
     mod = {0 => 0x26, 1 => 0x15, 2 => 0x0A, 3 => 0x05}
 
     if value
+      @built_in_crc_disabled = (value == 0)
       write_spi(ModWidthReg, mod.fetch(value))
       value <<= 4
-      value |= 0x80 if value != 0
+      value |= 0x80 unless @built_in_crc_disabled
       write_spi(reg.fetch(direction), value)
     end
 
@@ -419,7 +420,7 @@ class MFRC522
   # Append CRC to buffer and check CRC or Mifare acknowledge
   def picc_transceive(send_data, accept_timeout = false)
     send_data = send_data.dup
-    send_data.append_crc16
+    send_data.append_crc16 if @built_in_crc_disabled
 
     puts "Sending Data: #{send_data.to_bytehex}" if ENV['DEBUG']
 
@@ -433,7 +434,7 @@ class MFRC522
     puts "Valid bits: #{valid_bits}" if ENV['DEBUG']
 
     # Data exists, check CRC
-    if received_data.size > 2
+    if received_data.size > 2 && @built_in_crc_disabled
       raise IncorrectCRCError unless received_data.check_crc16(true)
     end
 

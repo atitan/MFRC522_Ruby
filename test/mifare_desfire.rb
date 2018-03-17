@@ -230,7 +230,7 @@ puts "###########################"
 file_setting = MIFARE::DESFire::FILE_SETTING.new
 file_setting.permission = MIFARE::DESFire::FILE_PERMISSION.new(0,0,0,0)
 # Data file only
-file_setting.size = 96
+file_setting.size = 256
 # Value file only
 file_setting.lower_limit = -16000000
 file_setting.upper_limit = 16000000
@@ -252,7 +252,7 @@ file_setting.communication = :plain
 c.create_file(1, file_setting)
 puts "Created std_data_file with plain OK"
 
-data = SecureRandom.random_bytes(96).bytes
+data = SecureRandom.random_bytes(200).bytes
 c.write_data(1, 0, data)
 if c.read_data(1, 0, 0) == data
   puts "Read-Write test OK"
@@ -265,7 +265,7 @@ file_setting.communication = :mac
 c.create_file(2, file_setting)
 puts "Created backup_data_file with mac OK"
 
-data = SecureRandom.random_bytes(96).bytes
+data = SecureRandom.random_bytes(180).bytes
 c.write_data(2, 0, data)
 c.commit_transaction
 if c.read_data(2, 0, 0) == data
@@ -304,8 +304,8 @@ file_setting.communication = :plain
 c.create_file(4, file_setting)
 puts "Created cyclic_record_file with plain OK"
 
-data = SecureRandom.random_bytes(16).bytes
-data2 = SecureRandom.random_bytes(16).bytes
+data = SecureRandom.random_bytes(10).bytes
+data2 = SecureRandom.random_bytes(3).bytes
 c.write_record(4, 0, data)
 c.commit_transaction
 c.write_record(4, 0, data2)
@@ -328,7 +328,7 @@ file_setting.communication = :mac
 c.create_file(1, file_setting)
 puts "Created std_data_file with mac OK"
 
-data = SecureRandom.random_bytes(96).bytes
+data = SecureRandom.random_bytes(150).bytes
 c.write_data(1, 0, data)
 if c.read_data(1, 0, 0) == data
   puts "Read-Write test OK"
@@ -341,7 +341,7 @@ file_setting.communication = :encrypt
 c.create_file(2, file_setting)
 puts "Created backup_data_file with encrypt OK"
 
-data = SecureRandom.random_bytes(96).bytes
+data = SecureRandom.random_bytes(34).bytes
 c.write_data(2, 0, data)
 c.commit_transaction
 if c.read_data(2, 0, 0) == data
@@ -355,8 +355,8 @@ file_setting.communication = :plain
 c.create_file(3, file_setting)
 puts "Created linear_record_file with plain OK"
 
-data = SecureRandom.random_bytes(16).bytes
-data2 = SecureRandom.random_bytes(16).bytes
+data = SecureRandom.random_bytes(2).bytes
+data2 = SecureRandom.random_bytes(7).bytes
 c.write_record(3, 0, data)
 c.commit_transaction
 c.write_record(3, 0, data2)
@@ -372,8 +372,8 @@ file_setting.communication = :mac
 c.create_file(4, file_setting)
 puts "Created cyclic_record_file with mac OK"
 
-data = SecureRandom.random_bytes(16).bytes
-data2 = SecureRandom.random_bytes(16).bytes
+data = SecureRandom.random_bytes(9).bytes
+data2 = SecureRandom.random_bytes(6).bytes
 c.write_record(4, 0, data)
 c.commit_transaction
 c.write_record(4, 0, data2)
@@ -396,7 +396,7 @@ file_setting.communication = :encrypt
 c.create_file(1, file_setting)
 puts "Created std_data_file with encrypt OK"
 
-data = SecureRandom.random_bytes(96).bytes
+data = SecureRandom.random_bytes(100).bytes
 c.write_data(1, 0, data)
 if c.read_data(1, 0, 0) == data
   puts "Read-Write test OK"
@@ -434,8 +434,8 @@ file_setting.communication = :mac
 c.create_file(3, file_setting)
 puts "Created linear_record_file with mac OK"
 
-data = SecureRandom.random_bytes(16).bytes
-data2 = SecureRandom.random_bytes(16).bytes
+data = SecureRandom.random_bytes(10).bytes
+data2 = SecureRandom.random_bytes(3).bytes
 c.write_record(3, 0, data)
 c.commit_transaction
 c.write_record(3, 0, data2)
@@ -451,8 +451,8 @@ file_setting.communication = :encrypt
 c.create_file(4, file_setting)
 puts "Created cyclic_record_file with encrypt OK"
 
-data = SecureRandom.random_bytes(16).bytes
-data2 = SecureRandom.random_bytes(16).bytes
+data = SecureRandom.random_bytes(15).bytes
+data2 = SecureRandom.random_bytes(1).bytes
 c.write_record(4, 0, data)
 c.commit_transaction
 c.write_record(4, 0, data2)
@@ -475,7 +475,7 @@ file_setting.communication = :plain
 c.create_file(1, file_setting)
 puts "Created backup_data_file with plain OK"
 
-data = SecureRandom.random_bytes(96).bytes
+data = SecureRandom.random_bytes(44).bytes
 c.write_data(1, 0, data)
 c.commit_transaction
 if c.read_data(1, 0, 0) == data
@@ -514,8 +514,8 @@ file_setting.communication = :encrypt
 c.create_file(3, file_setting)
 puts "Created linear_record_file with encrypt OK"
 
-data = SecureRandom.random_bytes(16).bytes
-data2 = SecureRandom.random_bytes(16).bytes
+data = SecureRandom.random_bytes(13).bytes
+data2 = SecureRandom.random_bytes(4).bytes
 c.write_record(3, 0, data)
 c.commit_transaction
 c.write_record(3, 0, data2)

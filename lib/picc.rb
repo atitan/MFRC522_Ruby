@@ -230,7 +230,6 @@ private
     z = value & 0x01
 
     ((x | y) << 1) + (x | (~y & z))
-    0
   end
 
   # Gether information from ATS (Answer to Select)
