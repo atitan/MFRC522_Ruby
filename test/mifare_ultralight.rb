@@ -10,7 +10,7 @@ rescue CommunicationError => e
   abort "Error communicating PICC: #{e.message}"
 end
 
-c = Mifare::Ultralight.new(r, uid, sak)
+c = MIFARE::Ultralight.new(r, uid, sak)
 
 rand = SecureRandom.random_bytes(4).bytes
 c.write(0x0A, rand)
@@ -22,7 +22,6 @@ else
 end
 
 # Check if Ultralight C
-# Check if Ultralight C
 if c.model_c?
   hex = SecureRandom.hex(16)
 
@@ -30,9 +29,9 @@ if c.model_c?
 
   c.write_des_key(hex)
 
-  c.resume_communication
+  c.restart_communication
 
-  k = Mifare::Key.new(:des, hex)
+  k = MIFARE::Key.new(:des, hex)
   c.auth(k)
 
   if c.authed?

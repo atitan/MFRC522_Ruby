@@ -3,38 +3,43 @@ require 'securerandom'
 
 r = MFRC522.new
 
-r.picc_request(MFRC522::PICC_REQA)
-uid, sak = r.picc_select
+begin
+  r.picc_request(MFRC522::PICC_REQA)
+  uid, sak = r.picc_select
+  puts "uid: #{uid}"
+rescue CommunicationError => e
+  abort "Error communicating PICC: #{e.message}"
+end
 
-c = Mifare::DESFire.new(r, uid, sak)
+c = MIFARE::DESFire.new(r, uid, sak)
 c.select
 
-picc_mk = Mifare::Key.new(:des, '00'*8)
+picc_mk = MIFARE::Key.new(:des, '00'*8)
 
-des_default_key = Mifare::Key.new(:des, '00'*8)
-des2k_default_key = Mifare::Key.new(:des, '00'*16)
-des3k_default_key = Mifare::Key.new(:des, '00'*24)
-aes_default_key = Mifare::Key.new(:aes, '00'*16)
+des_default_key = MIFARE::Key.new(:des, '00'*8)
+des2k_default_key = MIFARE::Key.new(:des, '00'*16)
+des3k_default_key = MIFARE::Key.new(:des, '00'*24)
+aes_default_key = MIFARE::Key.new(:aes, '00'*16)
 
-default_key_setting = Mifare::DESFire::KEY_SETTING.new
+default_key_setting = MIFARE::DESFire::KEY_SETTING.new
 
 APP1_ID = 3000
 APP2_ID = 30000
 APP3_ID = 300000
 APP4_ID = 16000000
 
-app1_key0 = Mifare::Key.new(:des, SecureRandom.hex(8))
-app1_key0_1 = Mifare::Key.new(:des, SecureRandom.hex(8))
-app1_key1 = Mifare::Key.new(:des, SecureRandom.hex(8))
-app2_key0 = Mifare::Key.new(:des, SecureRandom.hex(16))
-app2_key0_1 = Mifare::Key.new(:des, SecureRandom.hex(16))
-app2_key1 = Mifare::Key.new(:des, SecureRandom.hex(16))
-app3_key0 = Mifare::Key.new(:des, SecureRandom.hex(24))
-app3_key0_1 = Mifare::Key.new(:des, SecureRandom.hex(24))
-app3_key1 = Mifare::Key.new(:des, SecureRandom.hex(24))
-app4_key0 = Mifare::Key.new(:aes, SecureRandom.hex(16))
-app4_key0_1 = Mifare::Key.new(:aes, SecureRandom.hex(16))
-app4_key1 = Mifare::Key.new(:aes, SecureRandom.hex(16))
+app1_key0 = MIFARE::Key.new(:des, SecureRandom.hex(8))
+app1_key0_1 = MIFARE::Key.new(:des, SecureRandom.hex(8))
+app1_key1 = MIFARE::Key.new(:des, SecureRandom.hex(8))
+app2_key0 = MIFARE::Key.new(:des, SecureRandom.hex(16))
+app2_key0_1 = MIFARE::Key.new(:des, SecureRandom.hex(16))
+app2_key1 = MIFARE::Key.new(:des, SecureRandom.hex(16))
+app3_key0 = MIFARE::Key.new(:des, SecureRandom.hex(24))
+app3_key0_1 = MIFARE::Key.new(:des, SecureRandom.hex(24))
+app3_key1 = MIFARE::Key.new(:des, SecureRandom.hex(24))
+app4_key0 = MIFARE::Key.new(:aes, SecureRandom.hex(16))
+app4_key0_1 = MIFARE::Key.new(:aes, SecureRandom.hex(16))
+app4_key1 = MIFARE::Key.new(:aes, SecureRandom.hex(16))
 
 c.select_app(0)
 puts 'Selected App:0 OK'
@@ -47,7 +52,7 @@ puts 'Format card memory OK'
 
 puts "Get_Card_Version: #{c.get_card_version}"
 
-c.create_app(999, Mifare::DESFire::KEY_SETTING.new, 1, 'des-ede-cbc')
+c.create_app(999, MIFARE::DESFire::KEY_SETTING.new, 1, 'des-ede-cbc')
 puts 'Created test app:999 for deleting test OK'
 
 c.get_app_ids.each do |id|
@@ -105,8 +110,8 @@ else
 end
 
 key_setting = app_key_setting[:key_setting]
-key_setting.create_delete_without_mk = false
-puts 'Remove create_delete_without_mk from key setting'
+key_setting.file_management_without_auth = false
+puts 'Remove flag file_management_without_auth from key setting'
 
 c.change_key_setting(key_setting)
 puts 'Change key setting OK'
@@ -222,8 +227,8 @@ c.get_card_version
 puts "###########################"
 puts "#########File Test#########"
 puts "###########################"
-file_setting = Mifare::DESFire::FILE_SETTING.new
-file_setting.permission = Mifare::DESFire::FILE_PERMISSION.new(0,0,0,0)
+file_setting = MIFARE::DESFire::FILE_SETTING.new
+file_setting.permission = MIFARE::DESFire::FILE_PERMISSION.new(0,0,0,0)
 # Data file only
 file_setting.size = 96
 # Value file only
