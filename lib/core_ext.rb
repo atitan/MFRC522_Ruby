@@ -45,6 +45,10 @@ class Array
     old_crc == new_crc
   end
 
+  def xor(array2)
+    zip(array2).map{|x, y| x ^ y }
+  end
+
   private
 
   def crc16

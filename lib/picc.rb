@@ -20,6 +20,7 @@ class PICC
     @fwt = 256 # 77.33ms(256 ticks) default frame waiting time
     @picc_support_cid = false # PICC support for CID
     @picc_support_nad = false # PICC support for NAD
+    @historical_byte = []
     @block_number = 0 # ISO frame block number
     @iso_selected = false # If card is in iso mode
   end
@@ -117,7 +118,7 @@ class PICC
     @pcd.transceiver_baud_rate(:rx, @dsi)
 
     @block_number = 0
-    @max_frame_size = [64, @fsc].min
+    @max_frame_size = [@pcd.buffer_size, @fsc].min
     @max_inf_size = @max_frame_size - 3 # PCB + CRC16
     @max_inf_size -= 1 if @picc_support_cid
     @max_inf_size -= 1 if @picc_support_nad
@@ -215,7 +216,7 @@ class PICC
     crc
   end
 
-  private
+private
 
   def choose_d(value)
     # ISO DS/DR
@@ -280,6 +281,12 @@ class PICC
 
       @picc_support_cid = true if tc & 0x02 != 0
       @picc_support_nad = true if tc & 0x01 != 0
+    end
+
+    position += 1
+
+    if ats.size - position > 0
+      @historical_byte = ats[position..-1]
     end
 
     # Start-up guard time

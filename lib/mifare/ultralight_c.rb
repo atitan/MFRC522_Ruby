@@ -6,6 +6,7 @@ module MIFARE
       end
 
       auth_key.clear_iv
+      auth_key.padding_mode(1)
 
       # Ask for authentication
       buffer = [CMD_3DES_AUTH, 0x00]

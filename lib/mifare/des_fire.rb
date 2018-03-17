@@ -166,7 +166,6 @@ module MIFARE
     def initialize(pcd, uid, sak)
       super
       invalid_auth
-      @cmac_buffer = []
       @selected_app = false
     end
 
@@ -196,7 +195,7 @@ module MIFARE
       buffer = [cmd] + plain_data
 
       if @authed
-        @session_key.padding_mode((encrypt_padding.nil?) ? :zero : :iso7816)
+        @session_key.padding_mode(encrypt_padding || 1)
       end
 
       if tx == :encrypt
@@ -223,7 +222,7 @@ module MIFARE
         card_status = receive_buffer.shift
         received_data.concat(receive_buffer)
 
-        break if card_status != ST_ADDITIONAL_FRAME
+        break if card_status != ST_ADDITIONAL_FRAME || (buffer.empty? && expect == ST_ADDITIONAL_FRAME)
 
         buffer.unshift(CMD_ADDITIONAL_FRAME)
       end
@@ -256,7 +255,7 @@ module MIFARE
         if receive_length.nil?
           raise UsageError, 'Lack of receive length for removing padding'
         end
-        @session_key.padding_mode((receive_length == 0) ? :iso7816 : :zero)
+        @session_key.padding_mode((receive_length > 0) ? 1 : 2)
         receive_length += 4 # CRC32
         received_data = @session_key.decrypt(received_data, data_length: receive_length)
         received_crc = received_data.pop(4).to_uint
@@ -272,7 +271,7 @@ module MIFARE
     def auth(key_number, auth_key)
       cmd = (auth_key.type == :des) ? CMD_DES_AUTH : CMD_AES_AUTH
       auth_key.clear_iv
-      auth_key.padding_mode(:zero)
+      auth_key.padding_mode(1)
 
       # Ask for authentication
       received_data = transceive(cmd: cmd, data: key_number, expect: ST_ADDITIONAL_FRAME)
@@ -410,7 +409,7 @@ module MIFARE
     def set_ats(ats)
       raise UnauthenticatedError unless @authed
 
-      transceive(cmd: CMD_SET_CONFIGURATION, plain_data: 0x02, data: ats, tx: :encrypt, encrypt_padding: :iso7816)
+      transceive(cmd: CMD_SET_CONFIGURATION, plain_data: 0x02, data: ats, tx: :encrypt, encrypt_padding: 2)
     end
 
     def get_key_version(key_number)
@@ -432,7 +431,7 @@ module MIFARE
 
       # XOR new key if we're using different one
       unless same_key
-        cryptogram = cryptogram.zip(curr_key.key).map{|x, y| x ^ y }
+        cryptogram = cryptogram.xor(curr_key.key)
       end
 
       # AES stores key version separately
@@ -447,7 +446,7 @@ module MIFARE
       end
 
       # Encrypt cryptogram
-      @session_key.padding_mode(:zero)
+      @session_key.padding_mode(1)
       buffer = [key_number] + @session_key.encrypt(cryptogram)
 
       transceive(cmd: CMD_CHANGE_KEY, data: buffer, rx: :mac)

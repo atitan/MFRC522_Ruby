@@ -12,8 +12,9 @@ module MIFARE
       init_cipher
     end
 
+    # Padding Method according to ISO-9797
     def padding_mode(mode)
-      if mode != :zero || mode != :iso7816
+      if mode != 1 && mode != 2
         raise UsageError, 'Unknown padding mode'
       end
       @padding_mode = mode
@@ -28,7 +29,7 @@ module MIFARE
 
       # Add padding if not a complete block
       if data.size % @block_size != 0
-        data << 0x80 if @padding_mode == :iso7816
+        data << 0x80 if @padding_mode == 2
         until data.size % @block_size == 0
           data << 0x00
         end
@@ -41,13 +42,21 @@ module MIFARE
       @cipher.decrypt
 
       data = cbc_crypt(data, cbc_mode)
-      if @padding_mode == :iso7816
+      if @padding_mode == 1
+        data[0...data_length]
+      elsif @padding_mode == 2
         str = data.pack('C*')
         str.sub! /#{0x80.chr}#{0x00.chr}*\z/, ''
         str.bytes
       else
-        data[0...data_length]
+        raise UsageError, 'Padding mode not set'
       end
+    end
+
+    def set_iv(iv)
+      iv = iv.pack('C*')
+      raise UsageError, 'Incorrect IV length' if iv.size != @block_size
+      @cipher_iv = iv
     end
 
     def clear_iv
