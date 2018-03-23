@@ -99,7 +99,7 @@ class MFRC522
   TestDAC2Reg       = 0x3A  # defines the test value for TestDAC2
   TestADCReg        = 0x3B  # shows the value of ADC I and Q channels
 
-  def initialize(nrstpd = 24, chip = 0, spd = 1000000, timer = 256)
+  def initialize(nrstpd = 24, chip = 0, spd = 4000000, timer = 256)
     chip_option = { 0 => PiPiper::Spi::CHIP_SELECT_0,
                     1 => PiPiper::Spi::CHIP_SELECT_1,
                     2 => PiPiper::Spi::CHIP_SELECT_BOTH,
@@ -268,13 +268,7 @@ class MFRC522
           # Validate buffer content against non-numeric classes and incorrect size
           buffer = buffer[0..5]
           dirty_buffer = buffer.size != 6
-          dirty_buffer ||= buffer.any? do |byte|
-            if Gem::Version.new(RUBY_VERSION) >= Gem::Version.new('2.4.0')
-              !byte.is_a?(Numeric)
-            else
-              !byte.is_a?(Fixnum)
-            end
-          end
+          dirty_buffer ||= buffer.any?{|byte| !byte.is_a?(Integer) }
 
           # Retry reading UID when buffer is dirty, but don't reset loop count to prevent infinite loop
           if dirty_buffer
