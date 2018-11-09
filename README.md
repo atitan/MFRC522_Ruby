@@ -52,3 +52,6 @@ Check out files in folder `test` for example usage.
 
 You have to rescue exceptions yourself.
 
+## Known Issue
+
+The underlying library `pi_piper` we used is known to cause SegFault if you use it along with Gtk3 on Respbian Stretch, which comes with Ruby 2.3.3 by default. Upgrading Ruby to newer version is likely to solve the issue. Ref: https://github.com/atitan/MFRC522_Ruby/issues/4
