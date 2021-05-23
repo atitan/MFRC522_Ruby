@@ -1,7 +1,7 @@
 ## MFRC522 3.0.0  ##
 
 *   Replace PiPiper with Fubuki for more stable SPI communication
-*   FIXED: ISO 14443-4 transceive error
+*   API CHANGED: MFRC522 initializer has changed to keyword arguments
 
 ## MFRC522 2.0.0  ##
 

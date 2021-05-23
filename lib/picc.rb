@@ -90,7 +90,6 @@ class PICC
     end
 
     # Collect INF from chain
-p received_chained_data
     inf = []
     received_chained_data.each do |data|
       flag = data.shift

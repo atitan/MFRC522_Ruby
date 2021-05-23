@@ -427,10 +427,12 @@ class MFRC522
     return received_data, valid_bits
   end
 
-  private
-
   # Read from SPI communication
-  def read_spi(*regs)
+  def read_spi(reg)
+    read_spi_bulk(reg).first
+  end
+
+  def read_spi_bulk(*regs)
     regs.flatten!
 
     payload = regs.map{ |reg| ((reg & 0x3F) << 1) | 0x80 }
@@ -441,11 +443,7 @@ class MFRC522
     # discard first byte
     result.shift
 
-    if regs.length == 1
-      result.shift
-    else
-      result
-    end
+    result
   end
 
   # Write to SPI communication
@@ -507,7 +505,7 @@ class MFRC522
     received_data = []
     data_length = read_spi(FIFOLevelReg)
     if data_length > 0
-      received_data = read_spi(Array.new(data_length, FIFODataReg))
+      received_data = read_spi_bulk(Array.new(data_length, FIFODataReg))
     end
     valid_bits = read_spi(ControlReg) & 0x07
 
