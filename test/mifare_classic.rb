@@ -1,3 +1,5 @@
+require 'bundler/setup'
+
 require 'mfrc522'
 require 'securerandom'
 

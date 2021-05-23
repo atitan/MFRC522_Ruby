@@ -12,6 +12,8 @@ Inspired by [miguelbalboa/rfid](https://github.com/miguelbalboa/rfid) and [Elmue
 
 Ruby version 2.3+ is required.
 
+Linux SPIDEV is required. Raspberry Pi can use raspi-config to enable.
+
 You can install it by doing `gem install mfrc522` or using bundler.
 
 ## Documentation
@@ -20,9 +22,11 @@ RDoc is available at [RubyDoc](http://www.rubydoc.info/github/atitan/MFRC522_Rub
 
 ## Hardware
 
-This library assumes you have the reader connected to SPI0 CE0 on Raspberry Pi, and the NRSTPD(RST) pin is connected to BCM24.
+This library assumes you have the reader connected to SPI0 CE0 on Raspberry Pi.
 
 If not, adjust the parameters when calling MFRC522 initialize method.
+
+NRSTPD(RST) pin should be connected to 5V or something logically HIGH.
 
 ## Supported RFID tags
 
@@ -54,4 +58,4 @@ You have to rescue exceptions yourself.
 
 ## Known Issue
 
-The underlying library `pi_piper` we used is known to cause SegFault if you use it along with Gtk3 on Respbian Stretch, which comes with Ruby 2.3.3 by default. Upgrading Ruby to newer version is likely to solve the issue. Ref: https://github.com/atitan/MFRC522_Ruby/issues/4
+For older versions(< 3.0.0), the underlying library `pi_piper` we used is known to cause SegFault if you use it along with Gtk3 on Respbian Stretch, which comes with Ruby 2.3.3 by default. Upgrading Ruby to newer version is likely to solve the issue. Ref: [issue#4](https://github.com/atitan/MFRC522_Ruby/issues/4)

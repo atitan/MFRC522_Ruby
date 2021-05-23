@@ -90,13 +90,14 @@ class PICC
     end
 
     # Collect INF from chain
+p received_chained_data
     inf = []
     received_chained_data.each do |data|
-      inf_position = 1
-      inf_position += 1 if data[0] & 0x08 != 0 # CID present
-      inf_position += 1 if data[0] & 0x04 != 0 # NAD present
+      flag = data.shift
+      data.shift if flag & 0x08 != 0 # CID present
+      data.shift if flag & 0x04 != 0 # NAD present
 
-      inf.concat(data[inf_position..-1])
+      inf.concat(data)
     end
     inf
   end

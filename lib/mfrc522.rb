@@ -1,4 +1,4 @@
-require 'pi_piper'
+require 'fubuki'
 
 require 'openssl'
 require 'securerandom'
@@ -15,8 +15,6 @@ require 'mifare/des_fire'
 require 'mifare/ultralight'
 require 'mifare/ultralight_c'
 require 'mifare/ultralight_ev1'
-
-include PiPiper
 
 class MFRC522
 
@@ -99,19 +97,11 @@ class MFRC522
   TestDAC2Reg       = 0x3A  # defines the test value for TestDAC2
   TestADCReg        = 0x3B  # shows the value of ADC I and Q channels
 
-  def initialize(nrstpd = 24, chip = 0, spd = 4000000, timer = 256)
-    chip_option = { 0 => PiPiper::Spi::CHIP_SELECT_0,
-                    1 => PiPiper::Spi::CHIP_SELECT_1,
-                    2 => PiPiper::Spi::CHIP_SELECT_BOTH,
-                    3 => PiPiper::Spi::CHIP_SELECT_NONE }
-    @spi_chip = chip_option[chip]
-    @spi_spd = spd
-    @timer = timer
-
-    # Power it up
-    nrstpd_pin = PiPiper::Pin.new(pin: nrstpd, direction: :out)
-    nrstpd_pin.on
-    sleep 1.0 / 20.0 # Wait 50ms
+  def initialize(spi_bus: 0, spi_chip: 0, spi_spd: 1_000_000, spi_delay: 1, pcd_timer: 256)
+    @spi_driver = Fubuki::SPI.new(spi_bus, spi_chip)
+    @spi_speed = spi_spd
+    @spi_delay = spi_delay
+    @pcd_timer = pcd_timer
 
     soft_reset # Perform software reset
 
@@ -148,7 +138,7 @@ class MFRC522
     transceiver_baud_rate(:rx, 0)
 
     # Set PCD timer value for 302us default timer
-    internal_timer(@timer)
+    internal_timer(@pcd_timer)
   end
 
   # Control transceive timeout value
@@ -440,32 +430,32 @@ class MFRC522
   private
 
   # Read from SPI communication
-  def read_spi(reg)
-    output = 0
-    PiPiper::Spi.begin do |spi|
-      spi.chip_select_active_low(true)
-      spi.bit_order Spi::MSBFIRST
-      spi.clock @spi_spd
+  def read_spi(*regs)
+    regs.flatten!
 
-      spi.chip_select(@spi_chip) do
-        spi.write((reg << 1) & 0x7E | 0x80)
-        output = spi.read
-      end
+    payload = regs.map{ |reg| ((reg & 0x3F) << 1) | 0x80 }
+    payload << 0x00
+
+    result = @spi_driver.transfer(payload, @spi_speed, @spi_delay)
+
+    # discard first byte
+    result.shift
+
+    if regs.length == 1
+      result.shift
+    else
+      result
     end
-    output
   end
 
   # Write to SPI communication
   def write_spi(reg, values)
-    PiPiper::Spi.begin do |spi|
-      spi.chip_select_active_low(true)
-      spi.bit_order Spi::MSBFIRST
-      spi.clock @spi_spd
+    spi_addr = (reg & 0x3F) << 1
+    payload = [spi_addr, *values]
 
-      spi.chip_select(@spi_chip) do
-        spi.write((reg << 1) & 0x7E, *values)
-      end
-    end
+    @spi_driver.transfer(payload, @spi_speed, @spi_delay)
+
+    true
   end
 
   # Set bits by mask
@@ -516,10 +506,8 @@ class MFRC522
     # Receiving data
     received_data = []
     data_length = read_spi(FIFOLevelReg)
-    while data_length > 0 do
-      data = read_spi(FIFODataReg)
-      received_data << data
-      data_length -=1
+    if data_length > 0
+      received_data = read_spi(Array.new(data_length, FIFODataReg))
     end
     valid_bits = read_spi(ControlReg) & 0x07
 

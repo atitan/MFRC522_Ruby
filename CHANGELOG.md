@@ -1,3 +1,8 @@
+## MFRC522 3.0.0  ##
+
+*   Replace PiPiper with Fubuki for more stable SPI communication
+*   FIXED: ISO 14443-4 transceive error
+
 ## MFRC522 2.0.0  ##
 
 *   API CHANGED: Module `Mifare` renamed to `MIFARE`
